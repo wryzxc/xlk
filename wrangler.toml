@@ -1,34 +1,19 @@
-name = "python-learning-platform"
-main = "app.py"
+name = "xlk"
 compatibility_date = "2024-01-01"
 
+# 注意：EdgeOne Pages 不支持 Python 运行时直接部署
+# 本项目使用 Pages Functions (JavaScript/TypeScript) 或需要转换为 Workers 部署
+# 以下配置适用于 Workers 部署方式
+
 [build]
-command = "pip install -r requirements.txt"
+command = ""
 
-[env.production]
-name = "python-learning-platform-prod"
-
-# 环境变量（生产环境需通过控制台设置）
+# 环境变量（通过控制台设置，不要在此写入真实值）
 [vars]
 PYTHON_VERSION = "3.10"
-
-# 密钥（通过 wrangler secret 命令设置，不要在此写入真实值）
-# SECRET_KEY = ""
-# DATABASE_URL = ""
 
 # 静态资源缓存规则
 [[rules]]
 type = "CacheRule"
 glob = "static/**/*"
 ttl = 31536000
-
-# KV 命名空间（用于会话存储和缓存）
-[[kv_namespaces]]
-binding = "SESSION_KV"
-id = "your_kv_namespace_id"
-
-# D1 数据库（SQLite 替代方案）
-[[d1_databases]]
-binding = "DB"
-database_name = "python-learning-db"
-database_id = "your_d1_database_id"
