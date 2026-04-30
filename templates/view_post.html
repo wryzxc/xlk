@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card mb-4">
+        <div class="card-body">
+            <h2>{{ post.title }}</h2>
+            <p class="text-muted">作者: {{ post.author.username }} | 发布时间: {{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+            <hr>
+            <div>{{ post.content | safe }}</div>
+        </div>
+    </div>
+    
+    <h4>回复 ({{ post.replies | length }})</h4>
+    
+    {% for reply in post.replies %}
+    <div class="card mb-2">
+        <div class="card-body">
+            <p>{{ reply.content }}</p>
+            <small class="text-muted">{{ reply.author.username }} | {{ reply.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+        </div>
+    </div>
+    {% endfor %}
+    
+    {% if current_user.is_authenticated %}
+    <div class="card mt-4">
+        <div class="card-body">
+            <h5>发表回复</h5>
+            <form method="POST" action="{{ url_for('reply_post', post_id=post.id) }}">
+                <div class="mb-3">
+                    <textarea class="form-control" name="content" rows="4" required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">提交回复</button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <p class="mt-4">请 <a href="{{ url_for('login') }}">登录</a> 后回复</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">学习进度</h2>
+    
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h3>{{ course_progress | length }}</h3>
+                <p>已学习课程</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                <h3>{{ progress_records | length }}</h3>
+                <p>学习章节数</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                <h3>{{ progress_records | selectattr('completed') | list | length }}</h3>
+                <p>已完成章节</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">课程进度详情</h5>
+        </div>
+        <div class="card-body">
+            {% for course_id, data in course_progress.items() %}
+            {% set course = progress_records | selectattr('course_id', 'equalto', course_id) | first %}
+            {% if course %}
+            <div class="mb-4">
+                <h5>{{ course.course.title }}</h5>
+                <div class="progress" style="height: 25px;">
+                    <div class="progress-bar" role="progressbar" 
+                         style="width: {{ (data.completed / data.total * 100) if data.total > 0 else 0 }}%" 
+                         aria-valuenow="{{ data.completed }}" 
+                         aria-valuemin="0" 
+                         aria-valuemax="{{ data.total }}">
+                        {{ "%.0f"|format(data.completed / data.total * 100) if data.total > 0 else 0 }}%
+                    </div>
+                </div>
+                <p class="text-muted mt-1">已完成 {{ data.completed }}/{{ data.total }} 章节</p>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}

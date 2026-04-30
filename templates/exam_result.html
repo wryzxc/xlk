@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card">
+        <div class="card-body text-center">
+            <h2>考试结果</h2>
+            <hr>
+            <div class="my-4">
+                {% if attempt.passed %}
+                <i class="bi bi-check-circle text-success" style="font-size: 5rem;"></i>
+                <h3 class="text-success mt-3">恭喜！考试通过</h3>
+                {% else %}
+                <i class="bi bi-x-circle text-danger" style="font-size: 5rem;"></i>
+                <h3 class="text-danger mt-3">未通过考试</h3>
+                {% endif %}
+            </div>
+            
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="stat-card mb-4">
+                        <h1>{{ "%.1f"|format(attempt.score) }}%</h1>
+                        <p>得分</p>
+                    </div>
+                </div>
+            </div>
+            
+            <p>完成时间: {{ attempt.completed_at.strftime('%Y-%m-%d %H:%M:%S') }}</p>
+            
+            <div class="mt-4">
+                <a href="{{ url_for('exams') }}" class="btn btn-primary">返回考试列表</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

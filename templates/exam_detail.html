@@ -1,0 +1,495 @@
+{% extends "base.html" %}
+
+{% block title %}{{ exam.title }} - 在线考试{% endblock %}
+{% block meta_description %}{{ exam.title }} - {{ exam.description[:100] }}...{% endblock %}
+
+{% block extra_css %}
+<style>
+.exam-header {
+    background: linear-gradient(135deg, var(--primary-600), var(--primary-700));
+    color: #fff;
+    border-radius: var(--radius-xl);
+    padding: var(--space-8);
+    margin-bottom: var(--space-8);
+}
+.exam-header h2 {
+    color: #fff;
+    margin-bottom: var(--space-3);
+}
+.exam-meta {
+    display: flex;
+    gap: var(--space-6);
+    flex-wrap: wrap;
+    opacity: 0.9;
+}
+.exam-meta-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+.question-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    margin-bottom: var(--space-5);
+    transition: all 0.2s ease;
+}
+.question-card:hover {
+    box-shadow: var(--shadow-md);
+}
+.question-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-4);
+    padding-bottom: var(--space-3);
+    border-bottom: 1px solid var(--border-light);
+}
+.question-number {
+    font-weight: 700;
+    color: var(--primary);
+    font-size: var(--text-lg);
+}
+.question-points {
+    background: var(--primary-bg);
+    color: var(--primary);
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-full);
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+.question-text {
+    font-size: var(--text-base);
+    color: var(--text-primary);
+    line-height: var(--leading-relaxed);
+    margin-bottom: var(--space-4);
+}
+
+/* 选项样式 */
+.option-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+.option-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    background: var(--bg-gray-50);
+}
+.option-item:hover {
+    border-color: var(--primary-300);
+    background: var(--primary-bg);
+}
+.option-item input {
+    margin-top: 0.25rem;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+    accent-color: var(--primary);
+    flex-shrink: 0;
+}
+.option-item label {
+    cursor: pointer;
+    flex: 1;
+    color: var(--text-secondary);
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+}
+.option-item:has(input:checked) {
+    border-color: var(--primary);
+    background: var(--primary-bg);
+}
+.option-item:has(input:checked) label {
+    color: var(--primary-dark);
+    font-weight: 500;
+}
+
+/* 填空题样式 */
+.fillblank-input {
+    width: 100%;
+    padding: var(--space-3) var(--space-4);
+    border: 2px solid var(--border-medium);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-base);
+    font-family: 'Fira Code', monospace;
+    background: var(--bg-gray-50);
+    transition: all 0.2s ease;
+    color: var(--text-primary);
+}
+.fillblank-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    background: var(--bg-white);
+    box-shadow: 0 0 0 3px var(--primary-bg);
+}
+.fillblank-input::placeholder {
+    color: var(--text-muted);
+}
+
+/* 提交按钮 */
+.exam-submit-area {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-4);
+    margin-top: var(--space-8);
+    margin-bottom: var(--space-8);
+    padding: var(--space-6);
+    background: var(--bg-white);
+    border-radius: var(--radius-xl);
+    border: 1px solid var(--border-light);
+}
+.btn-exam-submit {
+    padding: var(--space-4) var(--space-10);
+    font-size: var(--text-lg);
+    font-weight: 700;
+    border-radius: var(--radius-xl);
+}
+
+/* 进度指示 */
+.exam-progress {
+    position: sticky;
+    top: 80px;
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+    margin-bottom: var(--space-5);
+}
+.exam-progress-title {
+    font-weight: 700;
+    margin-bottom: var(--space-3);
+    color: var(--text-primary);
+}
+.exam-progress-bar {
+    height: 8px;
+    background: var(--border-light);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    margin-bottom: var(--space-3);
+}
+.exam-progress-fill {
+    height: 100%;
+    background: var(--gradient-primary);
+    border-radius: var(--radius-full);
+    transition: width 0.3s ease;
+}
+.exam-progress-stats {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+
+/* 题目类型标签 */
+.question-type-badge {
+    display: inline-block;
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    font-weight: 600;
+    margin-left: var(--space-2);
+}
+.question-type-badge.single {
+    background: var(--info-light);
+    color: var(--info-dark);
+}
+.question-type-badge.multiple {
+    background: var(--warning-light);
+    color: var(--warning-dark);
+}
+.question-type-badge.fill {
+    background: var(--success-light);
+    color: var(--success-dark);
+}
+.question-type-badge.code {
+    background: #1e1e2e;
+    color: #cdd6f4;
+}
+
+/* 代码阅读题样式 */
+.code-reading-block {
+    background: #1e1e2e;
+    border: 1px solid #313244;
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: #cdd6f4;
+    white-space: pre-wrap;
+    overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+    .exam-header {
+        padding: var(--space-5);
+    }
+    .exam-meta {
+        gap: var(--space-3);
+    }
+    .question-card {
+        padding: var(--space-4);
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-6">
+    <nav aria-label="面包屑导航" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('exams') }}">考试</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ exam.title }}</li>
+        </ol>
+    </nav>
+
+    <!-- 考试头部信息 -->
+    <div class="exam-header">
+        <h2>{{ exam.title }}</h2>
+        <p style="opacity:0.9;margin-bottom:var(--space-4)">{{ exam.description }}</p>
+        <div class="exam-meta">
+            <div class="exam-meta-item">
+                <span>&#9201;</span>
+                <span>考试时长: <strong>{{ exam.duration_minutes }}</strong> 分钟</span>
+            </div>
+            <div class="exam-meta-item">
+                <span>&#128220;</span>
+                <span>题目数量: <strong>{{ questions | length }}</strong> 题</span>
+            </div>
+            <div class="exam-meta-item">
+                <span>&#9989;</span>
+                <span>及格分数: <strong>{{ exam.passing_score }}%</strong></span>
+            </div>
+            <div class="exam-meta-item">
+                <span>&#127942;</span>
+                <span>难度: <strong>{{ exam.level }}</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 左侧：题目区域 -->
+        <div class="col-lg-8">
+            <form method="POST" action="{{ url_for('submit_exam', exam_id=exam.id) }}" id="examForm">
+                {% for question in questions %}
+                <div class="question-card" id="question-{{ loop.index }}">
+                    <div class="question-header">
+                        <span class="question-number">
+                            第{{ loop.index }}题
+                            {% if question.question_type == 'multiple_choice' %}
+                            <span class="question-type-badge single">单选</span>
+                            {% elif question.question_type == 'multiple_answer' %}
+                            <span class="question-type-badge multiple">多选</span>
+                            {% elif question.question_type == 'fill_blank' %}
+                            <span class="question-type-badge fill">填空</span>
+                            {% elif question.question_type == 'code_reading' %}
+                            <span class="question-type-badge code">代码阅读</span>
+                            {% endif %}
+                        </span>
+                        <span class="question-points">{{ question.points }}分</span>
+                    </div>
+
+                    <div class="question-text">{{ question.question_text }}</div>
+
+                    <!-- 单选题 -->
+                    {% if question.question_type == 'multiple_choice' %}
+                        <div class="option-list">
+                            {% set options = question.options.split('|') if '|' in question.options else question.options.split('  ') %}
+                            {% for option in options %}
+                            {% set opt_text = option.strip() %}
+                            {% if opt_text %}
+                            <div class="option-item" onclick="selectOption(this)">
+                                <input class="form-check-input" type="radio"
+                                       name="question_{{ question.id }}"
+                                       value="{{ opt_text[0] if opt_text else '' }}"
+                                       id="q{{ question.id }}_{{ loop.index }}"
+                                       onchange="updateProgress()">
+                                <label for="q{{ question.id }}_{{ loop.index }}">
+                                    {{ opt_text }}
+                                </label>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+
+                    <!-- 多选题 -->
+                    {% elif question.question_type == 'multiple_answer' %}
+                        <div class="option-list">
+                            {% set options = question.options.split('|') if '|' in question.options else question.options.split('  ') %}
+                            {% for option in options %}
+                            {% set opt_text = option.strip() %}
+                            {% if opt_text %}
+                            <div class="option-item" onclick="selectOption(this)">
+                                <input class="form-check-input" type="checkbox"
+                                       name="question_{{ question.id }}"
+                                       value="{{ opt_text[0] if opt_text else '' }}"
+                                       id="q{{ question.id }}_{{ loop.index }}"
+                                       onchange="updateProgress()">
+                                <label for="q{{ question.id }}_{{ loop.index }}">
+                                    {{ opt_text }}
+                                </label>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        <p style="font-size:0.75rem;color:var(--text-muted);margin-top:var(--space-2)">
+                            &#9432; 此题为多选题，请选择所有正确答案
+                        </p>
+
+                    <!-- 填空题 -->
+                    {% elif question.question_type == 'fill_blank' %}
+                        <div class="fillblank-area">
+                            <input type="text"
+                                   class="fillblank-input"
+                                   name="question_{{ question.id }}"
+                                   id="q{{ question.id }}"
+                                   placeholder="请输入你的答案..."
+                                   autocomplete="off"
+                                   oninput="updateProgress()">
+                        </div>
+
+                    <!-- 代码阅读题 -->
+                    {% elif question.question_type == 'code_reading' %}
+                        <div class="code-reading-block">{{ question.question_text.split('阅读以下代码，输出结果是什么？')[1].split('"options":')[0].replace('\\n', '\n') if '阅读以下代码' in question.question_text else question.question_text }}</div>
+                        <div class="option-list">
+                            {% set options = question.options.split('|') if '|' in question.options else question.options.split('  ') %}
+                            {% for option in options %}
+                            {% set opt_text = option.strip() %}
+                            {% if opt_text %}
+                            <div class="option-item" onclick="selectOption(this)">
+                                <input class="form-check-input" type="radio"
+                                       name="question_{{ question.id }}"
+                                       value="{{ opt_text[0] if opt_text else '' }}"
+                                       id="q{{ question.id }}_{{ loop.index }}"
+                                       onchange="updateProgress()">
+                                <label for="q{{ question.id }}_{{ loop.index }}">
+                                    {{ opt_text }}
+                                </label>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                <div class="exam-submit-area">
+                    <button type="button" class="btn btn-outline btn-lg" onclick="checkBeforeSubmit()">
+                        &#128221; 提交考试
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 右侧：进度面板 -->
+        <div class="col-lg-4">
+            <div class="exam-progress">
+                <div class="exam-progress-title">&#128202; 答题进度</div>
+                <div class="exam-progress-bar">
+                    <div class="exam-progress-fill" id="progressFill" style="width:0%"></div>
+                </div>
+                <div class="exam-progress-stats">
+                    已答 <strong id="answeredCount">0</strong> / {{ questions | length }} 题
+                </div>
+            </div>
+
+            <!-- 题目导航 -->
+            <div style="background:var(--bg-white);border:1px solid var(--border-light);border-radius:var(--radius-xl);padding:var(--space-5)">
+                <div style="font-weight:700;margin-bottom:var(--space-3);color:var(--text-primary)">&#128204; 快速导航</div>
+                <div style="display:flex;flex-wrap:wrap;gap:var(--space-2)">
+                    {% for question in questions %}
+                    <a href="#question-{{ loop.index }}"
+                       class="btn btn-sm btn-outline"
+                       id="nav-{{ loop.index }}"
+                       style="min-width:40px;text-align:center;padding:0.5rem">
+                        {{ loop.index }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 选项点击选中效果
+function selectOption(item) {
+    var input = item.querySelector('input');
+    if (input.type === 'radio') {
+        // 单选：清除同组其他选中状态
+        var name = input.name;
+        document.querySelectorAll('input[name="' + name + '"]').forEach(function(r) {
+            r.closest('.option-item').style.borderColor = '';
+            r.closest('.option-item').style.background = '';
+        });
+    }
+    input.checked = !input.checked;
+    updateProgress();
+}
+
+// 更新答题进度
+function updateProgress() {
+    var total = {{ questions | length }};
+    var answered = 0;
+
+    {% for question in questions %}
+    {% if question.question_type in ['multiple_choice', 'multiple_answer'] %}
+    if (document.querySelectorAll('input[name="question_{{ question.id }}"]:checked').length > 0) {
+        answered++;
+        document.getElementById('nav-{{ loop.index }}').style.background = 'var(--success)';
+        document.getElementById('nav-{{ loop.index }}').style.color = '#fff';
+        document.getElementById('nav-{{ loop.index }}').style.borderColor = 'var(--success)';
+    } else {
+        document.getElementById('nav-{{ loop.index }}').style.background = '';
+        document.getElementById('nav-{{ loop.index }}').style.color = '';
+        document.getElementById('nav-{{ loop.index }}').style.borderColor = '';
+    }
+    {% elif question.question_type == 'fill_blank' %}
+    if (document.getElementById('q{{ question.id }}').value.trim() !== '') {
+        answered++;
+        document.getElementById('nav-{{ loop.index }}').style.background = 'var(--success)';
+        document.getElementById('nav-{{ loop.index }}').style.color = '#fff';
+        document.getElementById('nav-{{ loop.index }}').style.borderColor = 'var(--success)';
+    } else {
+        document.getElementById('nav-{{ loop.index }}').style.background = '';
+        document.getElementById('nav-{{ loop.index }}').style.color = '';
+        document.getElementById('nav-{{ loop.index }}').style.borderColor = '';
+    }
+    {% endif %}
+    {% endfor %}
+
+    var percent = total > 0 ? (answered / total * 100) : 0;
+    document.getElementById('progressFill').style.width = percent + '%';
+    document.getElementById('answeredCount').textContent = answered;
+}
+
+// 提交前检查
+function checkBeforeSubmit() {
+    var total = {{ questions | length }};
+    var answered = parseInt(document.getElementById('answeredCount').textContent);
+
+    if (answered < total) {
+        var unanswered = total - answered;
+        if (confirm('你还有 ' + unanswered + ' 道题未作答，确定要提交吗？')) {
+            document.getElementById('examForm').submit();
+        }
+    } else {
+        if (confirm('确定要提交考试吗？提交后将无法修改答案。')) {
+            document.getElementById('examForm').submit();
+        }
+    }
+}
+
+// 页面加载时初始化进度
+updateProgress();
+</script>
+{% endblock %}

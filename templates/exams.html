@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}在线考试 - Python编程实训平台{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">在线考试</h2>
+    <section aria-label="考试列表">
+    <div class="row">
+        {% for exam in exams %}
+        <div class="col-md-6 mb-4">
+            <article class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">{{ exam.title }}</h5>
+                    <p class="card-text">{{ exam.description }}</p>
+                    <ul class="list-unstyled">
+                        <li><i class="bi bi-clock" aria-hidden="true"></i> 考试时长: {{ exam.duration_minutes }} 分钟</li>
+                        <li><i class="bi bi-check-circle" aria-hidden="true"></i> 及格分数: {{ exam.passing_score }}%</li>
+                        <li><i class="bi bi-question-circle" aria-hidden="true"></i> 题目数量: {{ exam.questions | length }}</li>
+                    </ul>
+                    <a href="{{ url_for('exam_detail', exam_id=exam.id) }}" class="btn btn-primary" aria-label="开始{{ exam.title }}">开始考试</a>
+                </div>
+            </article>
+        </div>
+        {% endfor %}
+    </div>
+    </section>
+</div>
+{% endblock %}

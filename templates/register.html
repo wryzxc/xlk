@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}用户注册 - Python编程实训平台{% endblock %}
+{% block content %}
+<div class="container py-8">
+    <div class="form-container">
+        <div class="form-card">
+            <h2 class="form-title">用户注册</h2>
+            <form method="POST" novalidate id="registerForm">
+                <div class="form-group">
+                    <label for="username" class="form-label">用户名</label>
+                    <input type="text" class="form-control" id="username" name="username" required minlength="3" maxlength="80" aria-describedby="username-help username-error" autocomplete="username">
+                    <small id="username-help" class="form-text">3-80个字符</small>
+                </div>
+                <div class="form-group">
+                    <label for="email" class="form-label">邮箱</label>
+                    <input type="email" class="form-control" id="email" name="email" required aria-describedby="email-help email-error" autocomplete="email">
+                    <small id="email-help" class="form-text">我们将不会分享您的邮箱地址</small>
+                </div>
+                <div class="form-group">
+                    <label for="password" class="form-label">密码</label>
+                    <input type="password" class="form-control" id="password" name="password" required minlength="6" aria-describedby="password-help password-error" autocomplete="new-password">
+                    <small id="password-help" class="form-text">至少6个字符</small>
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password" class="form-label">确认密码</label>
+                    <input type="password" class="form-control" id="confirm_password" name="confirm_password" required minlength="6" aria-describedby="confirm_password-error" autocomplete="new-password">
+                </div>
+                <button type="submit" class="btn btn-primary btn-block" id="registerBtn">注册</button>
+            </form>
+            <p class="form-footer">已有账号？<a href="{{ url_for('login') }}">立即登录</a></p>
+        </div>
+    </div>
+</div>
+{% endblock %}

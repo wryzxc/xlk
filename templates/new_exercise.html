@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">创建新练习</h2>
+    
+    <div class="card">
+        <div class="card-body">
+            <form method="POST">
+                <div class="mb-3">
+                    <label class="form-label">练习标题</label>
+                    <input type="text" class="form-control" name="title" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">练习描述</label>
+                    <textarea class="form-control" name="description" rows="3" required></textarea>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label">分类</label>
+                        <select class="form-select" name="category" required>
+                            <option value="基础">基础</option>
+                            <option value="数据结构">数据结构</option>
+                            <option value="面向对象">面向对象</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">难度</label>
+                        <select class="form-select" name="difficulty" required>
+                            <option value="easy">简单</option>
+                            <option value="medium">中等</option>
+                            <option value="hard">困难</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">起始代码</label>
+                    <textarea class="form-control code-editor" name="starter_code" rows="5"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">期望输出</label>
+                    <input type="text" class="form-control" name="expected_output">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">提示</label>
+                    <textarea class="form-control" name="hints" rows="2"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">创建练习</button>
+                <a href="{{ url_for('admin_panel') }}" class="btn btn-secondary">取消</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

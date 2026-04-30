@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}考试参与记录 - 管理后台{% endblock %}
+
+{% block extra_css %}
+<style>
+.admin-container { max-width: 1400px; margin: 0 auto; padding: var(--space-6); }
+.admin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-6); }
+.admin-header h1 { margin: 0; font-size: var(--text-2xl); }
+.filter-bar { display: flex; gap: var(--space-3); flex-wrap: wrap; margin-bottom: var(--space-4); padding: var(--space-4); background: var(--bg-white); border-radius: var(--radius-xl); border: 1px solid var(--border-light); }
+.filter-input, .filter-select { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-medium); border-radius: var(--radius-lg); font-size: var(--text-sm); }
+.btn-export { padding: var(--space-2) var(--space-4); background: #10b981; color: #fff; border: none; border-radius: var(--radius-lg); font-size: var(--text-sm); font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: var(--space-2); }
+.btn-export:hover { background: #059669; }
+.data-table { width: 100%; background: var(--bg-white); border-radius: var(--radius-xl); border: 1px solid var(--border-light); overflow: hidden; }
+.data-table th, .data-table td { padding: var(--space-3) var(--space-4); text-align: left; border-bottom: 1px solid var(--border-light); font-size: var(--text-sm); }
+.data-table th { background: var(--bg-gray-50); font-weight: 600; color: var(--text-secondary); }
+.data-table tr:hover { background: var(--bg-gray-50); }
+.status-badge { display: inline-block; padding: 0.25rem 0.5rem; border-radius: var(--radius); font-size: var(--text-xs); font-weight: 600; }
+.status-badge.passed { background: #d1fae5; color: #065f46; }
+.status-badge.failed { background: #fee2e2; color: #991b1b; }
+.score-display { font-weight: 700; }
+.score-display.passed { color: #059669; }
+.score-display.failed { color: #dc2626; }
+.pagination { display: flex; justify-content: center; gap: var(--space-1); padding: var(--space-4); }
+.page-btn { padding: var(--space-2) var(--space-3); border: 1px solid var(--border-medium); background: var(--bg-white); border-radius: var(--radius); font-size: var(--text-sm); cursor: pointer; text-decoration: none; color: var(--text-primary); }
+.page-btn:hover, .page-btn.active { background: var(--primary-500); color: #fff; border-color: var(--primary-500); }
+.page-btn.disabled { opacity: 0.5; pointer-events: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <h1>&#127942; 考试参与记录</h1>
+        <a href="{{ url_for('export_exam_participations', user_id=request.args.get('user_id',''), exam_id=request.args.get('exam_id','')) }}" class="btn-export">&#128229; 导出CSV</a>
+    </div>
+
+    <div class="filter-bar">
+        <select class="filter-select" id="userId" onchange="applyFilter()">
+            <option value="">全部用户</option>
+            {% for u in users %}
+            <option value="{{ u.id }}" {% if user_id == u.id %}selected{% endif %}>{{ u.username }} (ID:{{ u.id }})</option>
+            {% endfor %}
+        </select>
+        <select class="filter-select" id="examId" onchange="applyFilter()">
+            <option value="">全部考试</option>
+            {% for e in exams %}
+            <option value="{{ e.id }}" {% if exam_id == e.id %}selected{% endif %}>{{ e.title }}</option>
+            {% endfor %}
+        </select>
+        <select class="filter-select" id="passed" onchange="applyFilter()">
+            <option value="">全部结果</option>
+            <option value="true" {% if passed == 'true' %}selected{% endif %}>通过</option>
+            <option value="false" {% if passed == 'false' %}selected{% endif %}>未通过</option>
+        </select>
+        <button class="btn-filter" onclick="clearFilter()">清除筛选</button>
+    </div>
+
+    <div class="data-table">
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>用户</th>
+                    <th>考试</th>
+                    <th>得分</th>
+                    <th>结果</th>
+                    <th>正确率</th>
+                    <th>开始时间</th>
+                    <th>完成时间</th>
+                    <th>耗时</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in participations.items %}
+                <tr>
+                    <td>#{{ p.id }}</td>
+                    <td><strong>{{ p.user.username if p.user else '未知' }}</strong><br><small style="color: var(--text-muted);">ID:{{ p.user_id }}</small></td>
+                    <td>{{ p.exam.title if p.exam else '-' }}</td>
+                    <td class="score-display {{ 'passed' if p.passed else 'failed' }}">{{ "%.1f"|format(p.score) }}%</td>
+                    <td>
+                        {% if p.passed %}
+                        <span class="status-badge passed">通过</span>
+                        {% else %}
+                        <span class="status-badge failed">未通过</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ p.correct_count }}/{{ p.total_questions }}</td>
+                    <td><small>{{ p.started_at.strftime('%Y-%m-%d %H:%M') if p.started_at else '-' }}</small></td>
+                    <td><small>{{ p.completed_at.strftime('%Y-%m-%d %H:%M') if p.completed_at else '-' }}</small></td>
+                    <td>{{ p.duration_seconds // 60 }}分{{ p.duration_seconds % 60 }}秒 if p.duration_seconds else '-' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9" style="text-align: center; padding: var(--space-8); color: var(--text-muted);">暂无记录</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if participations.pages > 1 %}
+    <div class="pagination">
+        {% if participations.has_prev %}
+        <a href="{{ url_for('admin_exam_participations', page=participations.prev_num, user_id=user_id, exam_id=exam_id, passed=passed) }}" class="page-btn">上一页</a>
+        {% else %}
+        <span class="page-btn disabled">上一页</span>
+        {% endif %}
+        {% for p in participations.iter_pages(left_edge=2, left_current=2, right_current=3, right_edge=2) %}
+            {% if p %}
+                {% if p == participations.page %}<span class="page-btn active">{{ p }}</span>
+                {% else %}<a href="{{ url_for('admin_exam_participations', page=p, user_id=user_id, exam_id=exam_id, passed=passed) }}" class="page-btn">{{ p }}</a>{% endif %}
+            {% else %}<span class="page-btn disabled">...</span>{% endif %}
+        {% endfor %}
+        {% if participations.has_next %}
+        <a href="{{ url_for('admin_exam_participations', page=participations.next_num, user_id=user_id, exam_id=exam_id, passed=passed) }}" class="page-btn">下一页</a>
+        {% else %}
+        <span class="page-btn disabled">下一页</span>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function applyFilter() {
+    var params = new URLSearchParams();
+    var userId = document.getElementById('userId').value;
+    var examId = document.getElementById('examId').value;
+    var passed = document.getElementById('passed').value;
+    if (userId) params.set('user_id', userId);
+    if (examId) params.set('exam_id', examId);
+    if (passed) params.set('passed', passed);
+    window.location.href = '{{ url_for("admin_exam_participations") }}?' + params.toString();
+}
+function clearFilter() {
+    window.location.href = '{{ url_for("admin_exam_participations") }}';
+}
+</script>
+{% endblock %}

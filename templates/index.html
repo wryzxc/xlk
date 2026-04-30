@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+
+{% block title %}Python编程实训平台 - 从零开始掌握Python编程{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container hero-content">
+        <div class="hero-badge animate-fadeIn">
+            <span class="hero-badge-icon">&#127775;</span>
+            <span>渐进式学习路径 · 从入门到精通</span>
+        </div>
+        <h1 class="animate-fadeIn" style="animation-delay:.05s">
+            掌握Python编程<br>
+            <span class="hero-gradient-text">一步一步成为专家</span>
+        </h1>
+        <p class="animate-fadeIn" style="animation-delay:.1s">
+            科学的学习路径设计，从基础语法到高级应用，每个知识点都经过精心编排，<br>
+            确保你能够循序渐进地掌握Python编程的核心技能。
+        </p>
+        <div class="hero-buttons animate-fadeIn" style="animation-delay:.15s">
+            <a href="{{ url_for('courses') }}" class="btn btn-light btn-lg px-5" style="background:#fff;color:#6366f1;font-weight:700">
+                &#128218; 开始学习
+            </a>
+            <a href="{{ url_for('exercises') }}" class="btn btn-outline-light btn-lg px-5">
+                &#128187; 立即练习
+            </a>
+        </div>
+        <div class="hero-stats animate-fadeIn" style="animation-delay:.2s">
+            <div class="hero-stat">
+                <div class="hero-stat-value">{{ platform_stats.total_courses }}</div>
+                <div class="hero-stat-label">系统课程</div>
+            </div>
+            <div class="hero-stat-divider"></div>
+            <div class="hero-stat">
+                <div class="hero-stat-value">{{ platform_stats.total_lessons }}</div>
+                <div class="hero-stat-label">精选课时</div>
+            </div>
+            <div class="hero-stat-divider"></div>
+            <div class="hero-stat">
+                <div class="hero-stat-value">{{ platform_stats.total_exercises }}</div>
+                <div class="hero-stat-label">编程练习</div>
+            </div>
+            <div class="hero-stat-divider"></div>
+            <div class="hero-stat">
+                <div class="hero-stat-value">{{ platform_stats.total_exams }}</div>
+                <div class="hero-stat-label">分级考试</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="container">
+    <!-- 学习仪表盘（仅登录用户可见） -->
+    {% if current_user.is_authenticated and stats %}
+    <section class="dashboard-section animate-fadeIn">
+        <div class="dashboard-header">
+            <h2 class="dashboard-title">
+                <span class="dashboard-title-icon">&#128202;</span>
+                我的学习仪表盘
+            </h2>
+            <a href="{{ url_for('progress') }}" class="dashboard-link">查看详细进度 &#8594;</a>
+        </div>
+        <div class="dashboard-grid">
+            <div class="dashboard-card">
+                <div class="dashboard-card-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">&#128218;</div>
+                <div class="dashboard-card-content">
+                    <div class="dashboard-card-value">{{ stats.completed_lessons }}/{{ stats.total_lessons }}</div>
+                    <div class="dashboard-card-label">课时完成</div>
+                    <div class="dashboard-card-bar">
+                        <div class="dashboard-card-progress" style="width:{{ stats.lesson_progress }}%;background:linear-gradient(90deg,#6366f1,#8b5cf6)"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="dashboard-card">
+                <div class="dashboard-card-icon" style="background:linear-gradient(135deg,#10b981,#059669)">&#128187;</div>
+                <div class="dashboard-card-content">
+                    <div class="dashboard-card-value">{{ stats.passed_exercises }}/{{ stats.total_exercises }}</div>
+                    <div class="dashboard-card-label">练习通过</div>
+                    <div class="dashboard-card-bar">
+                        <div class="dashboard-card-progress" style="width:{{ stats.exercise_progress }}%;background:linear-gradient(90deg,#10b981,#059669)"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="dashboard-card">
+                <div class="dashboard-card-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">&#127942;</div>
+                <div class="dashboard-card-content">
+                    <div class="dashboard-card-value">{{ stats.passed_exams }}/{{ stats.total_exams }}</div>
+                    <div class="dashboard-card-label">考试通过</div>
+                    <div class="dashboard-card-bar">
+                        <div class="dashboard-card-progress" style="width:{{ (stats.passed_exams / stats.total_exams * 100) if stats.total_exams > 0 else 0 }}%;background:linear-gradient(90deg,#f59e0b,#d97706)"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- 渐进式学习路径 -->
+    <section class="learning-path-section animate-fadeIn">
+        <div class="section-header">
+            <div class="section-header-left">
+                <h2 class="section-title">渐进式学习路径</h2>
+                <p class="section-subtitle">科学编排的课程体系，从入门到精通，每一步都稳扎稳打</p>
+            </div>
+            <a href="{{ url_for('courses') }}" class="section-link">查看全部课程 &#8594;</a>
+        </div>
+        
+        <div class="learning-path-timeline">
+            {% for course in courses %}
+            <div class="path-node animate-fadeIn" style="animation-delay:{{ loop.index * 0.08 }}s">
+                <div class="path-node-connector {% if loop.first %}path-node-start{% endif %}"></div>
+                <div class="path-node-card">
+                    <div class="path-node-level">
+                        <span class="badge badge-{{ course.level }}">{{ course.difficulty_label }}</span>
+                        <span class="path-node-order">第 {{ loop.index }} 阶段</span>
+                    </div>
+                    <div class="path-node-icon">
+                        {% if loop.index == 1 %}&#127793;
+                        {% elif loop.index == 2 %}&#128203;
+                        {% elif loop.index == 3 %}&#127954;
+                        {% elif loop.index == 4 %}&#128193;
+                        {% elif loop.index == 5 %}&#9881;
+                        {% else %}&#127760;{% endif %}
+                    </div>
+                    <h4 class="path-node-title">{{ course.title }}</h4>
+                    <p class="path-node-desc">{{ course.description[:80] }}...</p>
+                    <div class="path-node-meta">
+                        <span>&#128218; {{ course.lesson_count }} 课时</span>
+                        <span>&#9201; {{ course.estimated_minutes }} 分钟</span>
+                    </div>
+                    <a href="{{ url_for('course_detail', course_id=course.id) }}" class="btn btn-primary btn-sm path-node-btn">
+                        开始学习
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- 核心特色 -->
+    <section class="features-section">
+        <div class="section-header text-center">
+            <h2 class="section-title">为什么选择我们</h2>
+            <p class="section-subtitle">精心设计的教学体系，让学习更高效、更有趣</p>
+        </div>
+        <div class="features-grid">
+            <div class="feature-card animate-fadeIn">
+                <div class="feature-icon" style="background:linear-gradient(135deg,#667eea,#764ba2)">&#128218;</div>
+                <h3>渐进式学习</h3>
+                <p>课程难度由浅入深，每个知识点都建立在前一个基础之上，确保学习效果最大化</p>
+            </div>
+            <div class="feature-card animate-fadeIn" style="animation-delay:.1s">
+                <div class="feature-icon" style="background:linear-gradient(135deg,#10b981,#059669)">&#128274;</div>
+                <h3>章节锁定机制</h3>
+                <p>完成前置课时才能解锁下一章，强制巩固基础，避免知识盲区</p>
+            </div>
+            <div class="feature-card animate-fadeIn" style="animation-delay:.2s">
+                <div class="feature-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">&#128187;</div>
+                <h3>在线编程</h3>
+                <p>内置代码编辑器，无需配置环境即可运行代码，即时获得反馈</p>
+            </div>
+            <div class="feature-card animate-fadeIn" style="animation-delay:.3s">
+                <div class="feature-icon" style="background:linear-gradient(135deg,#ec4899,#db2777)">&#128202;</div>
+                <h3>进度追踪</h3>
+                <p>实时记录学习进度，可视化仪表盘让你清晰掌握学习状态</p>
+            </div>
+            <div class="feature-card animate-fadeIn" style="animation-delay:.4s">
+                <div class="feature-icon" style="background:linear-gradient(135deg,#06b6d4,#0891b2)">&#9989;</div>
+                <h3>即时评估</h3>
+                <p>自动评分系统，练习完成后立即获得反馈，快速定位薄弱环节</p>
+            </div>
+            <div class="feature-card animate-fadeIn" style="animation-delay:.5s">
+                <div class="feature-icon" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)">&#127942;</div>
+                <h3>分级考试</h3>
+                <p>通过阶段性考试检验学习成果，获得学习认证，增强学习动力</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 热门课程 -->
+    <section class="popular-courses-section">
+        <div class="section-header">
+            <div class="section-header-left">
+                <h2 class="section-title">热门课程</h2>
+                <p class="section-subtitle">最受欢迎的系统化课程，从这里开始你的Python之旅</p>
+            </div>
+            <a href="{{ url_for('courses') }}" class="section-link">查看全部 &#8594;</a>
+        </div>
+        <div class="courses-grid-home">
+            {% for course in courses[:3] %}
+            <div class="course-card-home animate-fadeIn" style="animation-delay:{{ loop.index * 0.08 }}s">
+                <div class="course-card-home-header">
+                    <div class="course-card-home-icon">
+                        {% if loop.index == 1 %}&#127793;
+                        {% elif loop.index == 2 %}&#128203;
+                        {% elif loop.index == 3 %}&#127954;
+                        {% else %}&#128193;{% endif %}
+                    </div>
+                    <div class="course-card-home-badges">
+                        <span class="badge badge-{{ course.level }}">{{ course.difficulty_label }}</span>
+                    </div>
+                </div>
+                <h4 class="course-card-home-title">{{ course.title }}</h4>
+                <p class="course-card-home-desc">{{ course.description[:100] }}...</p>
+                <div class="course-card-home-meta">
+                    <span>&#128218; {{ course.lesson_count }} 章节</span>
+                    <span>&#9201; {{ course.estimated_minutes }} 分钟</span>
+                </div>
+                <div class="course-card-home-footer">
+                    <a href="{{ url_for('course_detail', course_id=course.id) }}" class="btn btn-primary btn-course-home">
+                        <span>开始学习</span>
+                        <span>&#8594;</span>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta-section animate-fadeIn">
+        <div class="cta-content">
+            <h2>准备好开始你的Python学习之旅了吗？</h2>
+            <p>免费注册账号，解锁全部课程、练习和考试，开启你的编程进阶之路</p>
+            {% if not current_user.is_authenticated %}
+            <a href="{{ url_for('register') }}" class="btn btn-light btn-lg px-5" style="background:#fff;color:#6366f1;font-weight:700">
+                &#128640; 立即注册
+            </a>
+            {% else %}
+            <a href="{{ url_for('courses') }}" class="btn btn-light btn-lg px-5" style="background:#fff;color:#6366f1;font-weight:700">
+                &#128218; 继续学习
+            </a>
+            {% endif %}
+        </div>
+    </section>
+</div>
+
+<style>
+/* Hero Section */
+.hero-badge{display:inline-flex;align-items:center;gap:.5rem;background:rgba(255,255,255,.2);backdrop-filter:blur(8px);padding:.5rem 1.25rem;border-radius:var(--radius-full);font-size:.875rem;font-weight:500;margin-bottom:1.5rem;color:#fff;border:1px solid rgba(255,255,255,.2)}
+.hero-badge-icon{font-size:1rem}
+.hero-gradient-text{background:linear-gradient(135deg,#fff,#c7d2fe);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-stats{display:flex;justify-content:center;align-items:center;gap:2rem;margin-top:3rem;flex-wrap:wrap}
+.hero-stat{text-align:center;color:#fff}
+.hero-stat-value{font-size:2.5rem;font-weight:800;line-height:1}
+.hero-stat-label{font-size:.875rem;opacity:.8;margin-top:.25rem}
+.hero-stat-divider{width:1px;height:40px;background:rgba(255,255,255,.3)}
+
+/* Dashboard Section */
+.dashboard-section{margin:var(--space-8) 0;padding:var(--space-8);background:var(--bg-white);border-radius:var(--radius-xl);box-shadow:var(--shadow-md);border:1px solid var(--border-light)}
+.dashboard-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-6);flex-wrap:wrap;gap:var(--space-3)}
+.dashboard-title{font-size:var(--text-xl);font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:var(--space-2);margin:0}
+.dashboard-title-icon{font-size:1.25rem}
+.dashboard-link{font-size:var(--text-sm);font-weight:600;color:var(--primary);text-decoration:none}
+.dashboard-link:hover{text-decoration:underline}
+.dashboard-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:var(--space-5)}
+.dashboard-card{display:flex;align-items:center;gap:var(--space-4);padding:var(--space-5);background:var(--bg-gray-50);border-radius:var(--radius-xl);border:1px solid var(--border-light);transition:all var(--transition-base)}
+.dashboard-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.dashboard-card-icon{width:48px;height:48px;border-radius:var(--radius-lg);display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:#fff;flex-shrink:0}
+.dashboard-card-content{flex:1;min-width:0}
+.dashboard-card-value{font-size:1.5rem;font-weight:800;color:var(--text-primary);line-height:1}
+.dashboard-card-label{font-size:var(--text-sm);color:var(--text-muted);margin-top:.125rem}
+.dashboard-card-bar{height:4px;background:var(--border-light);border-radius:var(--radius-full);margin-top:var(--space-2);overflow:hidden}
+.dashboard-card-progress{height:100%;border-radius:var(--radius-full);transition:width 1s ease}
+
+/* Learning Path Section */
+.learning-path-section{margin:var(--space-12) 0}
+.section-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:var(--space-8);flex-wrap:wrap;gap:var(--space-4)}
+.section-header.text-center{justify-content:center;text-align:center}
+.section-header-left{flex:1}
+.section-title{font-size:clamp(1.5rem,3vw,2rem);font-weight:800;color:var(--text-primary);margin-bottom:var(--space-2);line-height:1.2}
+.section-subtitle{color:var(--text-tertiary);font-size:var(--text-base);max-width:480px}
+.section-link{font-size:var(--text-sm);font-weight:600;color:var(--primary);text-decoration:none;white-space:nowrap}
+.section-link:hover{text-decoration:underline}
+
+.learning-path-timeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:var(--space-6);position:relative}
+.path-node{position:relative}
+.path-node-connector{position:absolute;top:-24px;left:50%;width:2px;height:24px;background:var(--border-medium);transform:translateX(-50%)}
+.path-node-start{display:none}
+.path-node-card{background:var(--bg-white);border-radius:var(--radius-xl);padding:var(--space-6);border:1px solid var(--border-light);box-shadow:var(--shadow-sm);transition:all var(--transition-base);position:relative;overflow:hidden}
+.path-node-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);border-color:var(--primary-200)}
+.path-node-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--gradient-primary)}
+.path-node-level{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-4)}
+.path-node-order{font-size:var(--text-xs);color:var(--text-muted);font-weight:500}
+.path-node-icon{width:56px;height:56px;border-radius:var(--radius-xl);background:var(--gradient-mixed);display:flex;align-items:center;justify-content:center;font-size:1.75rem;color:#fff;margin-bottom:var(--space-4);box-shadow:var(--shadow-md)}
+.path-node-title{font-size:var(--text-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-2);line-height:var(--leading-tight)}
+.path-node-desc{color:var(--text-tertiary);font-size:var(--text-sm);line-height:var(--leading-relaxed);margin-bottom:var(--space-4);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.path-node-meta{display:flex;gap:var(--space-4);margin-bottom:var(--space-4);font-size:var(--text-xs);color:var(--text-muted)}
+.path-node-meta span{display:flex;align-items:center;gap:.25rem}
+.path-node-btn{width:100%;border-radius:var(--radius-lg)}
+
+/* Features Section */
+.features-section{margin:var(--space-12) 0}
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:var(--space-6)}
+.feature-card{background:var(--bg-white);border-radius:var(--radius-xl);padding:var(--space-6);border:1px solid var(--border-light);box-shadow:var(--shadow-sm);transition:all var(--transition-base)}
+.feature-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+.feature-icon{width:56px;height:56px;border-radius:var(--radius-xl);display:flex;align-items:center;justify-content:center;font-size:1.75rem;color:#fff;margin-bottom:var(--space-4);box-shadow:var(--shadow-md)}
+.feature-card h3{font-size:var(--text-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-2)}
+.feature-card p{color:var(--text-tertiary);font-size:var(--text-sm);line-height:var(--leading-relaxed);margin:0}
+
+/* Popular Courses */
+.popular-courses-section{margin:var(--space-12) 0}
+.courses-grid-home{display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-6)}
+.course-card-home{background:var(--bg-white);border-radius:var(--radius-xl);padding:var(--space-6);border:1px solid var(--border-light);box-shadow:var(--shadow-sm);transition:all var(--transition-base);display:flex;flex-direction:column}
+.course-card-home:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg)}
+.course-card-home-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:var(--space-4)}
+.course-card-home-icon{width:56px;height:56px;border-radius:var(--radius-xl);background:var(--gradient-mixed);display:flex;align-items:center;justify-content:center;font-size:1.75rem;color:#fff;box-shadow:var(--shadow-md)}
+.course-card-home-badges{display:flex;gap:var(--space-2)}
+.course-card-home-title{font-size:var(--text-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-2);line-height:var(--leading-tight)}
+.course-card-home-desc{color:var(--text-tertiary);font-size:var(--text-sm);line-height:var(--leading-relaxed);margin-bottom:var(--space-4);flex:1;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.course-card-home-meta{display:flex;gap:var(--space-4);margin-bottom:var(--space-4);font-size:var(--text-xs);color:var(--text-muted)}
+.course-card-home-footer{margin-top:auto}
+.btn-course-home{width:100%;display:flex;align-items:center;justify-content:center;gap:var(--space-2);padding:var(--space-3) var(--space-4);font-weight:600;border-radius:var(--radius-lg)}
+
+/* CTA Section */
+.cta-section{margin:var(--space-12) 0;padding:var(--space-12) var(--space-8);background:var(--gradient-primary);border-radius:var(--radius-xl);text-align:center;color:#fff;position:relative;overflow:hidden}
+.cta-section::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.1) 0%,transparent 50%);pointer-events:none}
+.cta-content{position:relative;z-index:1}
+.cta-content h2{font-size:clamp(1.5rem,3vw,2rem);font-weight:800;margin-bottom:var(--space-3)}
+.cta-content p{font-size:var(--text-base);opacity:.9;margin-bottom:var(--space-6);max-width:480px;margin-left:auto;margin-right:auto}
+
+/* 平板断点: 768px - 1023px */
+@media(max-width:1023.98px) and (min-width:768px){
+    .courses-grid-home{grid-template-columns:repeat(2,1fr)}
+    .features-grid{grid-template-columns:repeat(2,1fr)}
+    .dashboard-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* 移动端断点: < 768px */
+@media(max-width:767.98px){
+    .hero-stats{gap:1rem}
+    .hero-stat-value{font-size:1.75rem}
+    .hero-stat-divider{display:none}
+    .dashboard-section{padding:var(--space-5)}
+    .dashboard-grid{grid-template-columns:1fr}
+    .learning-path-timeline{grid-template-columns:1fr}
+    .path-node-connector{display:none}
+    .features-grid{grid-template-columns:1fr}
+    .courses-grid-home{grid-template-columns:1fr}
+    .section-header{flex-direction:column;align-items:flex-start}
+    .cta-section{padding:var(--space-8) var(--space-5)}
+}
+
+/* 小屏移动端: < 640px */
+@media(max-width:639.98px){
+    .courses-grid-home{grid-template-columns:1fr;gap:var(--space-4)}
+    .course-card-home{padding:var(--space-5)}
+    .course-card-home-icon{width:48px;height:48px;font-size:1.5rem}
+}
+</style>
+
+<script>
+if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/static/js/sw.js').catch(function(){})})}
+</script>
+{% endblock %}

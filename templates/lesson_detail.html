@@ -1,0 +1,489 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lesson.title }} - {{ lesson.course.title }} - Python编程实训平台{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <nav aria-label="面包屑导航" class="breadcrumb-nav">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('index') }}">首页</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('courses') }}">课程中心</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('course_detail', course_id=lesson.course_id) }}">{{ lesson.course.title }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ lesson.title }}</li>
+        </ol>
+    </nav>
+    
+    <!-- 课时位置信息 -->
+    <div class="lesson-breadcrumb-info animate-fadeIn">
+        <div class="lesson-breadcrumb-left">
+            <span class="lesson-breadcrumb-icon">&#128205;</span>
+            <span>当前位置: 第 <strong>{{ lesson.order }}</strong> 章 / 共 <strong>{{ lesson.course.lessons|length }}</strong> 章</span>
+        </div>
+        <div class="lesson-breadcrumb-right">
+            <span class="lesson-time-badge">
+                <span>&#9201;</span> 预计 {{ lesson.estimated_minutes }} 分钟
+            </span>
+        </div>
+    </div>
+    
+    <div class="lesson-page">
+        <!-- 侧边栏 -->
+        <aside class="lesson-sidebar">
+            <div class="lesson-sidebar-card">
+                <div class="lesson-sidebar-header">
+                    <div class="lesson-sidebar-header-top">
+                        <h5 class="lesson-sidebar-title">
+                            <span class="lesson-sidebar-title-icon">&#128203;</span>
+                            章节列表
+                        </h5>
+                    </div>
+                    {% if current_user.is_authenticated %}
+                    <div class="lesson-sidebar-progress">
+                        <div class="lesson-sidebar-progress-bar">
+                            <div class="lesson-sidebar-progress-fill" id="courseProgress" style="width:0%"></div>
+                        </div>
+                        <div class="lesson-sidebar-progress-text">
+                            <span class="lesson-sidebar-progress-icon">&#9201;</span>
+                            <span id="progressText">课程进度</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <ul class="lesson-list" id="lessonList">
+                    {% for l in lesson.course.lessons|sort(attribute='order') %}
+                    {% set is_completed = l.progress_records|selectattr('user_id','equalto',current_user.id|default(0))|selectattr('completed')|list|length > 0 %}
+                    <li class="lesson-item {% if l.id == lesson.id %}active{% endif %} {% if is_completed %}completed{% endif %}">
+                        <a href="{{ url_for('lesson_detail', lesson_id=l.id) }}" class="lesson-item-link">
+                            <span class="lesson-number">
+                                {% if is_completed %}&#10003;{% else %}{{ l.order }}{% endif %}
+                            </span>
+                            <span class="lesson-title-text">{{ l.title }}</span>
+                            {% if is_completed %}
+                            <span class="lesson-completed-badge">&#10003;</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            
+            <!-- 知识点卡片 -->
+            {% if lesson.key_points %}
+            <div class="key-points-card">
+                <h5 class="key-points-title">&#128161; 核心知识点</h5>
+                <ul class="key-points-list">
+                    {% for point in lesson.key_points.split(',') %}
+                    <li class="key-point-item">
+                        <span class="key-point-bullet">&#9679;</span>
+                        <span>{{ point.strip() }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </aside>
+        
+        <div class="lesson-content-wrapper animate-fadeIn">
+            <!-- 课时头部 -->
+            <div class="lesson-header lesson-header-enhanced">
+                <div class="lesson-header-top">
+                    <div class="lesson-header-info">
+                        <span class="badge badge-{{ lesson.course.level }} lesson-level-badge">
+                            {{ lesson.course.difficulty_label }}
+                        </span>
+                        <h2 class="lesson-title">{{ lesson.title }}</h2>
+                        <p class="lesson-subtitle">
+                            课程: {{ lesson.course.title }} | 第 {{ lesson.order }} 章 | 预计 {{ lesson.estimated_minutes }} 分钟
+                        </p>
+                    </div>
+                    {% if current_user.is_authenticated %}
+                    <button class="btn btn-complete" onclick="markComplete(this)" id="completeBtn">
+                        <span class="btn-complete-icon">&#10003;</span>
+                        <span class="btn-complete-text">标记完成</span>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- 课时内容 -->
+            <div class="lesson-body lesson-body-enhanced">
+                {{ lesson.content | safe }}
+            </div>
+
+            <!-- 重点注释 -->
+            {% if enhancement and enhancement.key_annotations %}
+            <div class="key-annotations-section">
+                <h3 class="key-annotations-title">&#128221; 重点注释</h3>
+                <div class="annotations-list">
+                    {% for ann in enhancement.key_annotations %}
+                    <div class="annotation-item">
+                        <div class="annotation-term">{{ ann.term }}</div>
+                        <div class="annotation-desc">{{ ann.desc }}</div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 交互式检查点 -->
+            {% if enhancement and enhancement.interactive_checkpoints %}
+            <div class="interactive-checkpoints-section">
+                <h3 class="interactive-checkpoints-title">&#10067; 知识自检</h3>
+                <div class="checkpoints-list">
+                    {% for cp in enhancement.interactive_checkpoints %}
+                    <div class="checkpoint-item" data-answer="{{ cp.answer }}" data-type="{{ cp.type }}">
+                        <div class="checkpoint-question">
+                            <span class="checkpoint-number">{{ loop.index }}.</span>
+                            <span>{{ cp.question }}</span>
+                        </div>
+                        {% if cp.type == 'choice' %}
+                        <div class="checkpoint-options">
+                            {% for opt in cp.options %}
+                            <button class="checkpoint-option-btn" onclick="checkAnswer(this, '{{ cp.answer }}')">{{ opt }}</button>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <div class="checkpoint-input-group">
+                            <input type="text" class="checkpoint-input" placeholder="请输入答案...">
+                            <button class="checkpoint-submit-btn" onclick="checkFillAnswer(this, '{{ cp.answer }}')">提交</button>
+                        </div>
+                        {% endif %}
+                        <div class="checkpoint-feedback" style="display:none"></div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 常见陷阱 -->
+            {% if enhancement and enhancement.common_pitfalls %}
+            <div class="common-pitfalls-section">
+                <h3 class="common-pitfalls-title">&#9888; 常见陷阱</h3>
+                <div class="pitfalls-list">
+                    {% for pitfall in enhancement.common_pitfalls %}
+                    <div class="pitfall-item">
+                        <div class="pitfall-header">
+                            <span class="pitfall-icon">&#128683;</span>
+                            <span class="pitfall-name">{{ pitfall.pitfall }}</span>
+                        </div>
+                        <div class="pitfall-solution">
+                            <span class="pitfall-solution-label">解决方案：</span>
+                            <span>{{ pitfall.solution }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- 代码示例区 -->
+            {% if lesson.code_examples %}
+            <div class="code-examples-section">
+                <h3 class="code-examples-title">&#128187; 代码示例</h3>
+                <div class="code-example-block">
+                    <pre class="code-example-pre"><code class="code-example-code">{{ lesson.code_examples }}</code></pre>
+                    <button class="btn btn-secondary btn-sm btn-copy-code" onclick="copyCode(this)">
+                        <span>&#128203;</span> 复制代码
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- 相关练习 -->
+            {% if related_exercises %}
+            <div class="related-exercises-section">
+                <h3 class="related-exercises-title">&#128295; 相关练习</h3>
+                <div class="related-exercises-list">
+                    {% for exercise in related_exercises %}
+                    <div class="related-exercise-card">
+                        <div class="related-exercise-header">
+                            <span class="related-exercise-badge badge badge-{{ exercise.difficulty_color }}">{{ exercise.difficulty_label }}</span>
+                            <span class="related-exercise-category">{{ exercise.category }}</span>
+                        </div>
+                        <h4 class="related-exercise-title">{{ exercise.title }}</h4>
+                        <p class="related-exercise-desc">{{ exercise.description[:100] }}...</p>
+                        <a href="{{ url_for('exercise_detail', exercise_id=exercise.id) }}" class="btn btn-primary btn-sm related-exercise-btn">
+                            <span>&#9654;</span> 去练习
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- 导航按钮 -->
+            <div class="lesson-footer lesson-footer-enhanced">
+                {% if prev_lesson %}
+                <a href="{{ url_for('lesson_detail', lesson_id=prev_lesson.id) }}" class="btn btn-secondary btn-nav btn-nav-prev">
+                    <span class="btn-nav-icon">&#8592;</span>
+                    <span class="btn-nav-label">上一章</span>
+                    <span class="btn-nav-title">{{ prev_lesson.title }}</span>
+                </a>
+                {% else %}
+                <a href="{{ url_for('course_detail', course_id=lesson.course_id) }}" class="btn btn-secondary btn-nav btn-nav-prev">
+                    <span class="btn-nav-icon">&#8592;</span>
+                    <span class="btn-nav-label">返回课程</span>
+                    <span class="btn-nav-title">{{ lesson.course.title }}</span>
+                </a>
+                {% endif %}
+                
+                {% if next_lesson %}
+                <a href="{{ url_for('lesson_detail', lesson_id=next_lesson.id) }}" class="btn btn-primary btn-nav btn-nav-next">
+                    <span class="btn-nav-label">下一章</span>
+                    <span class="btn-nav-icon">&#8594;</span>
+                    <span class="btn-nav-title">{{ next_lesson.title }}</span>
+                </a>
+                {% else %}
+                <a href="{{ url_for('course_detail', course_id=lesson.course_id) }}" class="btn btn-success btn-nav btn-nav-complete">
+                    <span class="btn-nav-icon">&#127881;</span>
+                    <span class="btn-nav-label">完成课程</span>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.lesson-breadcrumb-info{display:flex;justify-content:space-between;align-items:center;padding:var(--space-4) var(--space-5);background:var(--bg-white);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);border:1px solid var(--border-light);margin-bottom:var(--space-6)}
+.lesson-breadcrumb-left{display:flex;align-items:center;gap:var(--space-2);font-size:var(--text-sm);color:var(--text-secondary)}
+.lesson-breadcrumb-icon{font-size:1.125rem}
+.lesson-breadcrumb-left strong{color:var(--text-primary);font-weight:700}
+.lesson-time-badge{display:inline-flex;align-items:center;gap:var(--space-2);font-size:var(--text-sm);color:var(--primary-dark);background:var(--primary-50);padding:var(--space-2) var(--space-4);border-radius:var(--radius-full);font-weight:600}
+
+.lesson-header-enhanced{padding:var(--space-8);border-bottom:2px solid var(--primary-100);background:linear-gradient(to bottom,var(--primary-50),var(--bg-white));position:relative}
+.lesson-header-enhanced::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--gradient-primary)}
+.lesson-header-top{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-6)}
+.lesson-header-info{flex:1}
+.lesson-level-badge{margin-bottom:var(--space-3);display:inline-flex}
+.lesson-title{font-size:clamp(1.5rem,3vw,2rem);font-weight:800;color:var(--text-primary);margin-bottom:var(--space-2);line-height:var(--leading-tight)}
+.lesson-subtitle{color:var(--text-muted);font-size:var(--text-sm);margin-top:var(--space-2)}
+
+.btn-complete{display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-3) var(--space-5);background:var(--gradient-success);color:#fff;border:none;border-radius:var(--radius-lg);font-weight:600;font-size:var(--text-sm);cursor:pointer;transition:all var(--transition-base);box-shadow:var(--shadow-md),0 4px 14px rgba(5,150,105,.3);white-space:nowrap}
+.btn-complete:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg),0 6px 20px rgba(5,150,105,.4)}
+.btn-complete:disabled{opacity:.7;cursor:not-allowed;transform:none}
+.btn-complete.completed{background:var(--success);box-shadow:none}
+.btn-complete-icon{font-size:1.125rem}
+
+.lesson-body-enhanced{padding:var(--space-8)}
+.lesson-body-enhanced h3{font-size:var(--text-xl);font-weight:700;color:var(--text-primary);margin:var(--space-8) 0 var(--space-4);padding-bottom:var(--space-3);border-bottom:2px solid var(--primary-100);line-height:var(--leading-tight);position:relative}
+.lesson-body-enhanced h3::before{content:'';position:absolute;bottom:-2px;left:0;width:60px;height:2px;background:var(--primary)}
+.lesson-body-enhanced h3:first-child{margin-top:0}
+.lesson-body-enhanced h4{font-size:var(--text-lg);font-weight:600;color:var(--text-secondary);margin:var(--space-6) 0 var(--space-3)}
+.lesson-body-enhanced p{color:var(--text-secondary);line-height:var(--leading-relaxed);margin-bottom:var(--space-4)}
+.lesson-body-enhanced ul,.lesson-body-enhanced ol{margin-bottom:var(--space-4);padding-left:var(--space-6)}
+.lesson-body-enhanced li{margin-bottom:var(--space-2);color:var(--text-secondary);line-height:var(--leading-relaxed)}
+.lesson-body-enhanced pre{background:var(--bg-gray-900);color:#e2e8f0;padding:var(--space-5);border-radius:var(--radius-lg);overflow-x:auto;margin:var(--space-4) 0;font-size:var(--text-sm);line-height:var(--leading-relaxed);font-family:var(--font-mono);border-left:4px solid var(--primary);position:relative}
+.lesson-body-enhanced pre::before{content:'Python';position:absolute;top:0;right:0;padding:var(--space-1) var(--space-3);background:var(--primary);color:#fff;font-size:var(--text-xs);font-weight:600;border-radius:0 0 0 var(--radius)}
+.lesson-body-enhanced code{background:var(--bg-gray-100);padding:var(--space-1) var(--space-2);border-radius:var(--radius);font-size:0.875em;color:var(--primary-dark);font-family:var(--font-mono)}
+.lesson-body-enhanced pre code{background:none;padding:0;color:inherit;font-size:inherit}
+.lesson-body-enhanced blockquote{border-left:4px solid var(--primary);background:var(--primary-50);padding:var(--space-4) var(--space-5);margin:var(--space-4) 0;border-radius:0 var(--radius-lg) var(--radius-lg) 0}
+.lesson-body-enhanced blockquote p{color:var(--primary-dark);margin:0;font-style:italic}
+.lesson-body-enhanced table{width:100%;border-collapse:collapse;margin:var(--space-4) 0}
+.lesson-body-enhanced th,.lesson-body-enhanced td{padding:var(--space-3) var(--space-4);border:1px solid var(--border-light);text-align:left}
+.lesson-body-enhanced th{background:var(--primary-50);color:var(--primary-dark);font-weight:600}
+
+/* Key Points Card */
+.key-points-card{background:var(--bg-white);border-radius:var(--radius-xl);padding:var(--space-5);box-shadow:var(--shadow-sm);border:1px solid var(--border-light);margin-top:var(--space-6)}
+.key-points-title{font-size:var(--text-sm);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-3);display:flex;align-items:center;gap:var(--space-2)}
+.key-points-list{list-style:none;padding:0;margin:0}
+.key-point-item{display:flex;align-items:flex-start;gap:var(--space-2);padding:var(--space-2) 0;font-size:var(--text-sm);color:var(--text-secondary);line-height:var(--leading-relaxed)}
+.key-point-bullet{color:var(--primary);font-size:.5rem;margin-top:.5rem;flex-shrink:0}
+
+/* Code Examples */
+.code-examples-section{margin:var(--space-6) var(--space-8);padding:var(--space-6);background:var(--bg-gray-50);border-radius:var(--radius-xl);border:1px solid var(--border-light)}
+.code-examples-title{font-size:var(--text-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-4);display:flex;align-items:center;gap:var(--space-2)}
+.code-example-block{position:relative}
+.code-example-pre{background:var(--bg-gray-900);color:#e2e8f0;padding:var(--space-5);border-radius:var(--radius-lg);overflow-x:auto;font-size:var(--text-sm);line-height:var(--leading-relaxed);font-family:var(--font-mono);border-left:4px solid var(--primary);margin:0}
+.code-example-code{background:none;padding:0;color:inherit;font-size:inherit}
+.btn-copy-code{position:absolute;top:var(--space-3);right:var(--space-3);padding:var(--space-1) var(--space-3);font-size:var(--text-xs);opacity:.8}
+.btn-copy-code:hover{opacity:1}
+
+/* Related Exercises */
+.related-exercises-section{margin:var(--space-6) var(--space-8);padding:var(--space-6);background:var(--bg-white);border-radius:var(--radius-xl);border:1px solid var(--border-light);box-shadow:var(--shadow-sm)}
+.related-exercises-title{font-size:var(--text-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-4);display:flex;align-items:center;gap:var(--space-2)}
+.related-exercises-list{display:flex;flex-direction:column;gap:var(--space-3)}
+.related-exercise-card{padding:var(--space-4);background:var(--bg-gray-50);border-radius:var(--radius-lg);border:1px solid var(--border-light);transition:all var(--transition-fast)}
+.related-exercise-card:hover{box-shadow:var(--shadow-sm);border-color:var(--primary-200)}
+.related-exercise-header{display:flex;gap:var(--space-2);align-items:center;margin-bottom:var(--space-2);flex-wrap:wrap}
+.related-exercise-category{font-size:var(--text-xs);color:var(--text-muted);background:var(--bg-gray-100);padding:var(--space-1) var(--space-3);border-radius:var(--radius-full);font-weight:500}
+.related-exercise-title{font-size:var(--text-base);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-2)}
+.related-exercise-desc{color:var(--text-tertiary);font-size:var(--text-sm);line-height:var(--leading-relaxed);margin-bottom:var(--space-3)}
+.related-exercise-btn{display:inline-flex;align-items:center;gap:var(--space-2)}
+
+.lesson-footer-enhanced{padding:var(--space-6) var(--space-8);border-top:2px solid var(--primary-100);background:linear-gradient(to top,var(--primary-50),var(--bg-white));position:relative}
+.lesson-footer-enhanced::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:var(--gradient-primary)}
+.btn-nav{display:flex;align-items:center;gap:var(--space-3);padding:var(--space-4) var(--space-5);max-width:45%;height:auto;transition:all var(--transition-base)}
+.btn-nav-prev{justify-content:flex-start}
+.btn-nav-next,.btn-nav-complete{justify-content:flex-end;margin-left:auto}
+.btn-nav-icon{font-size:1.25rem;transition:transform var(--transition-base)}
+.btn-nav-label{font-size:var(--text-xs);color:var(--text-muted);font-weight:500}
+.btn-nav-next .btn-nav-label,.btn-nav-complete .btn-nav-label{color:var(--text-secondary);font-weight:600}
+.btn-nav-title{font-size:var(--text-sm);font-weight:600;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.btn-nav:hover .btn-nav-icon{transform:translateX(4px)}
+.btn-nav-prev:hover .btn-nav-icon{transform:translateX(-4px)}
+.btn-nav-complete{background:var(--gradient-success);box-shadow:var(--shadow-md),0 4px 14px rgba(5,150,105,.3)}
+.btn-nav-complete:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg),0 6px 20px rgba(5,150,105,.4)}
+
+/* Sidebar item link */
+.lesson-item-link{display:flex;align-items:center;gap:var(--space-3);color:inherit;text-decoration:none;width:100%}
+.lesson-item-link:hover{color:inherit}
+
+@media(max-width:1023.98px){
+    .lesson-header-enhanced{padding:var(--space-6)}
+    .lesson-body-enhanced{padding:var(--space-6)}
+    .lesson-footer-enhanced{padding:var(--space-5) var(--space-6)}
+    .btn-nav{max-width:100%;padding:var(--space-3) var(--space-4)}
+    .btn-nav-title{max-width:150px}
+    .code-examples-section,.related-exercises-section{margin:var(--space-4) var(--space-6);padding:var(--space-4)}
+}
+
+@media(max-width:767.98px){
+    .lesson-breadcrumb-info{flex-direction:column;gap:var(--space-3);align-items:flex-start}
+    .lesson-breadcrumb-right{width:100%}
+    .lesson-time-badge{width:100%;justify-content:center}
+    .lesson-header-top{flex-direction:column}
+    .btn-complete{width:100%;justify-content:center}
+    .lesson-footer-enhanced{flex-direction:column;gap:var(--space-3)}
+    .btn-nav{max-width:100%}
+    .btn-nav-next,.btn-nav-complete{margin-left:0}
+    .btn-nav-title{max-width:120px}
+    .code-examples-section,.related-exercises-section{margin:var(--space-4);padding:var(--space-4)}
+}
+
+/* 重点注释 */
+.key-annotations-section{margin:var(--space-6) var(--space-8);padding:var(--space-6);background:var(--bg-white);border-radius:var(--radius-xl);border:1px solid var(--border-light);box-shadow:var(--shadow-sm)}
+.key-annotations-title{font-size:var(--text-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-4);display:flex;align-items:center;gap:var(--space-2)}
+.annotations-list{display:flex;flex-direction:column;gap:var(--space-3)}
+.annotation-item{padding:var(--space-4);background:var(--bg-gray-50);border-radius:var(--radius-lg);border-left:4px solid var(--warning)}
+.annotation-term{font-size:var(--text-base);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-2)}
+.annotation-desc{font-size:var(--text-sm);color:var(--text-secondary);line-height:var(--leading-relaxed)}
+
+/* 交互式检查点 */
+.interactive-checkpoints-section{margin:var(--space-6) var(--space-8);padding:var(--space-6);background:var(--bg-white);border-radius:var(--radius-xl);border:1px solid var(--border-light);box-shadow:var(--shadow-sm)}
+.interactive-checkpoints-title{font-size:var(--text-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-4);display:flex;align-items:center;gap:var(--space-2)}
+.checkpoints-list{display:flex;flex-direction:column;gap:var(--space-3)}
+.checkpoint-item{padding:var(--space-4);background:var(--bg-gray-50);border-radius:var(--radius-lg);border:1px solid var(--border-light)}
+.checkpoint-question{font-size:var(--text-sm);font-weight:600;color:var(--text-primary);margin-bottom:var(--space-3);display:flex;align-items:flex-start;gap:var(--space-2)}
+.checkpoint-number{color:var(--primary);font-weight:700;min-width:20px}
+.checkpoint-options{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-bottom:var(--space-3)}
+.checkpoint-option-btn{padding:var(--space-2) var(--space-4);background:var(--bg-white);border:2px solid var(--border-light);border-radius:var(--radius-lg);font-size:var(--text-sm);color:var(--text-primary);cursor:pointer;transition:all var(--transition-fast)}
+.checkpoint-option-btn:hover{border-color:var(--primary);background:var(--primary-50)}
+.checkpoint-option-btn.correct{background:var(--success);border-color:var(--success);color:#fff}
+.checkpoint-option-btn.wrong{background:var(--danger);border-color:var(--danger);color:#fff}
+.checkpoint-option-btn:disabled{cursor:not-allowed;opacity:.7}
+.checkpoint-input-group{display:flex;gap:var(--space-2);margin-bottom:var(--space-3)}
+.checkpoint-input{flex:1;padding:var(--space-2) var(--space-3);border:2px solid var(--border-light);border-radius:var(--radius-lg);font-size:var(--text-sm);color:var(--text-primary)}
+.checkpoint-input:focus{outline:none;border-color:var(--primary)}
+.checkpoint-submit-btn{padding:var(--space-2) var(--space-4);background:var(--primary);color:#fff;border:none;border-radius:var(--radius-lg);font-size:var(--text-sm);font-weight:600;cursor:pointer;transition:all var(--transition-fast)}
+.checkpoint-submit-btn:hover{background:var(--primary-dark)}
+.checkpoint-feedback{padding:var(--space-3);border-radius:var(--radius-lg);font-size:var(--text-sm);font-weight:500}
+.checkpoint-feedback.correct{background:var(--success-50);color:var(--success);border:1px solid var(--success-200)}
+.checkpoint-feedback.wrong{background:var(--danger-50);color:var(--danger);border:1px solid var(--danger-200)}
+
+/* 常见陷阱 */
+.common-pitfalls-section{margin:var(--space-6) var(--space-8);padding:var(--space-6);background:var(--bg-white);border-radius:var(--radius-xl);border:1px solid var(--border-light);box-shadow:var(--shadow-sm)}
+.common-pitfalls-title{font-size:var(--text-lg);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-4);display:flex;align-items:center;gap:var(--space-2)}
+.pitfalls-list{display:flex;flex-direction:column;gap:var(--space-3)}
+.pitfall-item{padding:var(--space-4);background:var(--danger-50);border-radius:var(--radius-lg);border-left:4px solid var(--danger)}
+.pitfall-header{display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-2)}
+.pitfall-icon{font-size:1.25rem}
+.pitfall-name{font-size:var(--text-sm);font-weight:700;color:var(--danger)}
+.pitfall-solution{font-size:var(--text-sm);color:var(--text-secondary)}
+.pitfall-solution-label{font-weight:600;color:var(--text-primary)}
+
+@media(max-width:1023.98px){
+    .key-annotations-section,.interactive-checkpoints-section,.common-pitfalls-section{margin:var(--space-4) var(--space-6);padding:var(--space-4)}
+}
+@media(max-width:767.98px){
+    .checkpoint-options{flex-direction:column}
+    .checkpoint-input-group{flex-direction:column}
+    .checkpoint-option-btn{width:100%;text-align:left}
+}
+</style>
+
+{% block extra_js %}
+<script>
+function checkAnswer(btn, correctAnswer){
+    var container=btn.closest('.checkpoint-item');
+    var feedback=container.querySelector('.checkpoint-feedback');
+    var allBtns=container.querySelectorAll('.checkpoint-option-btn');
+    var userAnswer=btn.textContent.trim();
+    allBtns.forEach(function(b){b.disabled=true});
+    if(userAnswer===correctAnswer){
+        btn.classList.add('correct');
+        feedback.textContent='回答正确！';
+        feedback.className='checkpoint-feedback correct';
+    }else{
+        btn.classList.add('wrong');
+        feedback.textContent='回答错误，正确答案是：'+correctAnswer;
+        feedback.className='checkpoint-feedback wrong';
+        allBtns.forEach(function(b){if(b.textContent.trim()===correctAnswer){b.classList.add('correct')}});
+    }
+    feedback.style.display='block';
+}
+
+function checkFillAnswer(btn, correctAnswer){
+    var container=btn.closest('.checkpoint-item');
+    var input=container.querySelector('.checkpoint-input');
+    var feedback=container.querySelector('.checkpoint-feedback');
+    var userAnswer=input.value.trim();
+    input.disabled=true;
+    btn.disabled=true;
+    if(userAnswer.toLowerCase()===correctAnswer.toLowerCase()){
+        feedback.textContent='回答正确！';
+        feedback.className='checkpoint-feedback correct';
+    }else{
+        feedback.textContent='回答错误，正确答案是：'+correctAnswer;
+        feedback.className='checkpoint-feedback wrong';
+    }
+    feedback.style.display='block';
+}
+
+function markComplete(btn){
+    var lessonId={{ lesson.id }};
+    fetch('/lesson/'+lessonId+'/complete',{method:'POST',headers:{'Content-Type':'application/json'}})
+    .then(function(r){return r.json()})
+    .then(function(data){
+        if(data.success){
+            btn.innerHTML='<span class="btn-complete-icon">&#10003;</span><span class="btn-complete-text">已完成</span>';
+            btn.disabled=true;
+            btn.classList.add('completed');
+            var listItem=document.querySelector('.lesson-item.active');
+            if(listItem){listItem.classList.add('completed');listItem.querySelector('.lesson-number').innerHTML='&#10003;'}
+            showToast('恭喜！本节已标记为完成！');
+        }
+    });
+}
+
+function copyCode(btn){
+    var code=btn.parentElement.querySelector('code').innerText;
+    navigator.clipboard.writeText(code).then(function(){
+        var original=btn.innerHTML;
+        btn.innerHTML='<span>&#9989;</span> 已复制';
+        setTimeout(function(){btn.innerHTML=original},2000);
+    });
+}
+
+function showToast(message){
+    var toast=document.createElement('div');
+    toast.style.cssText='position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--success);color:#fff;padding:12px 24px;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.2);z-index:9999;font-weight:600;font-size:14px;animation:slideDown .3s ease';
+    toast.textContent=message;
+    document.body.appendChild(toast);
+    setTimeout(function(){toast.remove()},3000);
+}
+
+document.addEventListener('DOMContentLoaded',function(){
+    var completeBtn=document.getElementById('completeBtn');
+    if(completeBtn){
+        var lessonItem=document.querySelector('.lesson-item.active');
+        if(lessonItem&&lessonItem.classList.contains('completed')){
+            completeBtn.innerHTML='<span class="btn-complete-icon">&#10003;</span><span class="btn-complete-text">已完成</span>';
+            completeBtn.disabled=true;
+            completeBtn.classList.add('completed');
+        }
+    }
+});
+</script>
+{% endblock %}
+{% endblock %}

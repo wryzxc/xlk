@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2 class="mb-4">学习资源</h2>
+    
+    <div class="mb-4">
+        <select class="form-select" style="width: 300px;" onchange="window.location.href='{{ url_for('resources') }}?category=' + this.value">
+            <option value="all" {% if current_category == 'all' %}selected{% endif %}>全部分类</option>
+            <option value="课件" {% if current_category == '课件' %}selected{% endif %}>课件</option>
+            <option value="代码" {% if current_category == '代码' %}selected{% endif %}>代码</option>
+            <option value="文档" {% if current_category == '文档' %}selected{% endif %}>文档</option>
+        </select>
+    </div>
+    
+    <div class="row">
+        {% for resource in resources %}
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-file-earmark"></i> {{ resource.title }}
+                    </h5>
+                    <p class="card-text">{{ resource.description[:100] }}</p>
+                    <p class="text-muted"><small>分类: {{ resource.category }}</small></p>
+                    <a href="#" class="btn btn-primary btn-sm">下载资源</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% block title %}课程中心 - Python编程实训平台{% endblock %}
+{% block content %}
+<div class="container mt-5">
+    <!-- 页面头部 -->
+    <div class="courses-header animate-fadeIn">
+        <div class="courses-header-top">
+            <div>
+                <h2 class="courses-title">课程中心</h2>
+                <p class="courses-subtitle">从入门到精通，科学编排的渐进式学习路径，帮助你逐步掌握Python编程</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 学习路径可视化 -->
+    <div class="learning-path-visual animate-fadeIn" style="animation-delay:.05s">
+        <div class="path-visual-header">
+            <span class="path-visual-icon">&#128204;</span>
+            <span class="path-visual-title">你的学习路径</span>
+        </div>
+        <div class="path-visual-track">
+            {% for course in courses %}
+            {% set progress = user_progress.get(course.id, 0) if user_progress else 0 %}
+            <div class="path-visual-node {% if progress >= 100 %}path-visual-completed{% elif progress > 0 %}path-visual-active{% endif %}">
+                <div class="path-visual-dot">
+                    {% if progress >= 100 %}&#10003;
+                    {% elif progress > 0 %}{{ loop.index }}
+                    {% else %}<span class="path-visual-lock">&#128274;</span>{% endif %}
+                </div>
+                <div class="path-visual-label">{{ course.difficulty_label }}</div>
+                {% if not loop.last %}
+                <div class="path-visual-line {% if progress >= 100 %}path-visual-line-completed{% endif %}"></div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- 筛选面板 -->
+    <div class="courses-filter-panel animate-fadeIn" style="animation-delay:.1s">
+        <div class="filter-search-box">
+            <span class="filter-search-icon">&#128269;</span>
+            <input type="search" id="search-input" class="filter-search-input" placeholder="输入课程名称或关键词..." 
+                   value="{{ search_query }}">
+        </div>
+        <div class="filter-dropdowns">
+            <div class="filter-group">
+                <label for="category-filter" class="filter-label">分类筛选</label>
+                <div class="filter-select-wrapper">
+                    <select id="category-filter" class="filter-select">
+                        <option value="all" {% if current_category == 'all' %}selected{% endif %}>全部分类</option>
+                        <option value="基础" {% if current_category == '基础' %}selected{% endif %}>基础</option>
+                        <option value="进阶" {% if current_category == '进阶' %}selected{% endif %}>进阶</option>
+                        <option value="高级" {% if current_category == '高级' %}selected{% endif %}>高级</option>
+                        <option value="应用" {% if current_category == '应用' %}selected{% endif %}>应用</option>
+                    </select>
+                    <span class="filter-select-arrow">&#9662;</span>
+                </div>
+            </div>
+            <div class="filter-group">
+                <label for="level-filter" class="filter-label">难度筛选</label>
+                <div class="filter-select-wrapper">
+                    <select id="level-filter" class="filter-select">
+                        <option value="all" {% if current_level == 'all' %}selected{% endif %}>全部难度</option>
+                        <option value="beginner" {% if current_level == 'beginner' %}selected{% endif %}>入门</option>
+                        <option value="intermediate" {% if current_level == 'intermediate' %}selected{% endif %}>进阶</option>
+                        <option value="advanced" {% if current_level == 'advanced' %}selected{% endif %}>高级</option>
+                    </select>
+                    <span class="filter-select-arrow">&#9662;</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {% if courses %}
+    <div class="courses-results-info animate-fadeIn" style="animation-delay:.15s">
+        <p class="courses-count">找到 <strong>{{ courses|length }}</strong> 个课程</p>
+    </div>
+    {% else %}
+    <div class="empty-state animate-fadeIn">
+        <div class="empty-state-icon">&#128269;</div>
+        <h3 class="empty-state-title">未找到相关课程</h3>
+        <p class="empty-state-description">请尝试其他关键词或筛选条件，探索更多优质课程</p>
+        <a href="{{ url_for('courses') }}" class="btn btn-primary" style="margin-top:1.5rem">
+            <span>&#128218;</span> 查看全部课程
+        </a>
+    </div>
+    {% endif %}
+    
+    <!-- 课程列表 - 渐进式路径展示 -->
+    <div class="courses-path-list">
+        {% for course in courses %}
+        {% set progress = user_progress.get(course.id, 0) if user_progress else 0 %}
+        <div class="course-path-item animate-fadeIn" style="animation-delay:{{ loop.index * 0.08 }}s">
+            <div class="course-path-marker">
+                <div class="course-path-number">{{ loop.index }}</div>
+                {% if not loop.last %}
+                <div class="course-path-connector"></div>
+                {% endif %}
+            </div>
+            <div class="course-path-card">
+                <div class="course-path-card-body">
+                    <div class="course-path-top">
+                        <div class="course-path-icon">
+                            {% if loop.index == 1 %}&#127793;
+                            {% elif loop.index == 2 %}&#128203;
+                            {% elif loop.index == 3 %}&#127954;
+                            {% elif loop.index == 4 %}&#128193;
+                            {% elif loop.index == 5 %}&#9881;
+                            {% else %}&#127760;{% endif %}
+                        </div>
+                        <div class="course-path-info">
+                            <div class="course-path-badges">
+                                <span class="badge badge-{{ course.level }}">{{ course.difficulty_label }}</span>
+                                <span class="course-path-category">{{ course.category }}</span>
+                            </div>
+                            <h4 class="course-path-title">{{ course.title }}</h4>
+                        </div>
+                    </div>
+                    <p class="course-path-desc">{{ course.description }}</p>
+                    
+                    <!-- 进度条 -->
+                    {% if current_user.is_authenticated %}
+                    <div class="course-path-progress-wrap">
+                        <div class="course-path-progress-header">
+                            <span class="course-path-progress-label">学习进度</span>
+                            <span class="course-path-progress-value">{{ progress }}%</span>
+                        </div>
+                        <div class="course-path-progress-bar">
+                            <div class="course-path-progress-fill" style="width:{{ progress }}%"></div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="course-path-meta">
+                        <span>&#128218; <em>{{ course.lesson_count }}</em> 章节</span>
+                        <span>&#9201; <em>{{ course.estimated_minutes }}</em> 分钟</span>
+                        <span>&#128295; <em>{{ course.lesson_count }}</em> 练习</span>
+                    </div>
+                    <div class="course-path-footer">
+                        {% if progress >= 100 %}
+                        <a href="{{ url_for('course_detail', course_id=course.id) }}" class="btn btn-success btn-course-path">
+                            <span>&#10003;</span>
+                            <span>已完成</span>
+                        </a>
+                        {% elif progress > 0 %}
+                        <a href="{{ url_for('course_detail', course_id=course.id) }}" class="btn btn-primary btn-course-path">
+                            <span>&#9654;</span>
+                            <span>继续学习</span>
+                        </a>
+                        {% else %}
+                        <a href="{{ url_for('course_detail', course_id=course.id) }}" class="btn btn-primary btn-course-path">
+                            <span>&#128218;</span>
+                            <span>开始学习</span>
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+.courses-header{margin-bottom:2rem}
+.courses-title{font-size:clamp(1.75rem,3vw,2.5rem);font-weight:800;color:var(--text-primary);margin-bottom:.75rem;line-height:1.2;background:var(--gradient-mixed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;display:inline-block}
+.courses-subtitle{color:var(--text-tertiary);font-size:var(--text-base);line-height:var(--leading-relaxed);max-width:640px}
+
+/* Learning Path Visual */
+.learning-path-visual{background:var(--bg-white);border-radius:var(--radius-xl);padding:var(--space-6);box-shadow:var(--shadow-sm);border:1px solid var(--border-light);margin-bottom:var(--space-6)}
+.path-visual-header{display:flex;align-items:center;gap:var(--space-2);margin-bottom:var(--space-5)}
+.path-visual-icon{font-size:1.25rem}
+.path-visual-title{font-size:var(--text-lg);font-weight:700;color:var(--text-primary)}
+.path-visual-track{display:flex;align-items:center;justify-content:space-between;gap:var(--space-2);overflow-x:auto;padding-bottom:var(--space-2)}
+.path-visual-node{display:flex;flex-direction:column;align-items:center;gap:var(--space-2);position:relative;flex:1;min-width:80px}
+.path-visual-dot{width:40px;height:40px;border-radius:50%;background:var(--bg-gray-100);border:2px solid var(--border-medium);display:flex;align-items:center;justify-content:center;font-size:.875rem;font-weight:700;color:var(--text-muted);flex-shrink:0;transition:all var(--transition-base)}
+.path-visual-active .path-visual-dot{background:var(--primary);border-color:var(--primary);color:#fff}
+.path-visual-completed .path-visual-dot{background:var(--success);border-color:var(--success);color:#fff}
+.path-visual-lock{font-size:.875rem}
+.path-visual-label{font-size:var(--text-xs);color:var(--text-muted);font-weight:500;text-align:center;white-space:nowrap}
+.path-visual-line{position:absolute;top:20px;left:calc(50% + 24px);right:calc(-50% + 24px);height:2px;background:var(--border-light);z-index:-1}
+.path-visual-line-completed{background:var(--success)}
+
+/* Filter Panel */
+.courses-filter-panel{background:var(--bg-white);border-radius:var(--radius-xl);padding:var(--space-6);box-shadow:var(--shadow-sm);border:1px solid var(--border-light);margin-bottom:1.5rem}
+.filter-search-box{position:relative;margin-bottom:var(--space-4)}
+.filter-search-icon{position:absolute;left:var(--space-4);top:50%;transform:translateY(-50%);color:var(--text-muted);pointer-events:none;font-size:1.125rem}
+.filter-search-input{width:100%;padding:var(--space-4) var(--space-4) var(--space-4) var(--space-12);border:2px solid var(--border-light);border-radius:var(--radius-lg);font-size:var(--text-base);transition:all var(--transition-base);background:var(--bg-gray-50)}
+.filter-search-input:focus{outline:none;border-color:var(--primary-light);box-shadow:0 0 0 4px var(--primary-50);background:var(--bg-white)}
+.filter-search-input::placeholder{color:var(--text-muted)}
+.filter-dropdowns{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:var(--space-4)}
+.filter-group{display:flex;flex-direction:column;gap:var(--space-2)}
+.filter-label{font-size:var(--text-sm);font-weight:600;color:var(--text-secondary)}
+.filter-select-wrapper{position:relative}
+.filter-select{width:100%;padding:var(--space-3) var(--space-12) var(--space-3) var(--space-4);border:2px solid var(--border-light);border-radius:var(--radius-lg);font-size:var(--text-base);background:var(--bg-gray-50);appearance:none;cursor:pointer;transition:all var(--transition-base);color:var(--text-primary)}
+.filter-select:focus{outline:none;border-color:var(--primary-light);box-shadow:0 0 0 4px var(--primary-50);background:var(--bg-white)}
+.filter-select-arrow{position:absolute;right:var(--space-4);top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text-muted);font-size:.75rem}
+
+.courses-results-info{margin-bottom:1rem;padding:var(--space-3) var(--space-4);background:var(--primary-50);border-radius:var(--radius-lg);border:1px solid var(--primary-100)}
+.courses-count{color:var(--primary-dark);font-size:var(--text-sm);margin:0}
+.courses-count strong{font-weight:700}
+
+/* Course Path List */
+.courses-path-list{display:flex;flex-direction:column;gap:0;margin-bottom:var(--space-8)}
+.course-path-item{display:flex;gap:var(--space-5);position:relative}
+.course-path-marker{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:48px}
+.course-path-number{width:48px;height:48px;border-radius:50%;background:var(--gradient-primary);display:flex;align-items:center;justify-content:center;font-size:1.125rem;font-weight:800;color:#fff;box-shadow:var(--shadow-md);position:relative;z-index:2}
+.course-path-connector{width:2px;flex:1;background:var(--border-light);margin-top:var(--space-2);position:relative;z-index:1}
+.course-path-card{flex:1;background:var(--bg-white);border-radius:var(--radius-xl);border:1px solid var(--border-light);box-shadow:var(--shadow-sm);transition:all var(--transition-base);margin-bottom:var(--space-6);overflow:hidden}
+.course-path-card:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:var(--primary-200)}
+.course-path-card-body{padding:var(--space-6)}
+.course-path-top{display:flex;gap:var(--space-4);align-items:flex-start;margin-bottom:var(--space-4)}
+.course-path-icon{width:64px;height:64px;min-width:64px;border-radius:var(--radius-xl);background:var(--gradient-mixed);display:flex;align-items:center;justify-content:center;font-size:1.75rem;color:#fff;box-shadow:var(--shadow-md)}
+.course-path-info{flex:1;min-width:0}
+.course-path-badges{display:flex;gap:var(--space-2);align-items:center;margin-bottom:var(--space-2);flex-wrap:wrap}
+.course-path-category{font-size:var(--text-xs);color:var(--text-muted);background:var(--bg-gray-100);padding:var(--space-1) var(--space-3);border-radius:var(--radius-full);font-weight:500}
+.course-path-title{font-size:var(--text-xl);font-weight:700;color:var(--text-primary);line-height:var(--leading-tight);margin:0}
+.course-path-desc{color:var(--text-tertiary);font-size:var(--text-sm);line-height:var(--leading-relaxed);margin-bottom:var(--space-4)}
+
+/* Progress */
+.course-path-progress-wrap{margin-bottom:var(--space-4);padding:var(--space-3) var(--space-4);background:var(--bg-gray-50);border-radius:var(--radius-lg)}
+.course-path-progress-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-2)}
+.course-path-progress-label{font-size:var(--text-xs);color:var(--text-muted);font-weight:500}
+.course-path-progress-value{font-size:var(--text-xs);font-weight:700;color:var(--primary)}
+.course-path-progress-bar{height:6px;background:var(--border-light);border-radius:var(--radius-full);overflow:hidden}
+.course-path-progress-fill{height:100%;background:var(--gradient-primary);border-radius:var(--radius-full);transition:width 1s ease}
+
+.course-path-meta{display:flex;gap:var(--space-5);margin-bottom:var(--space-4);font-size:var(--text-sm);color:var(--text-muted);flex-wrap:wrap}
+.course-path-meta em{font-style:normal;font-weight:700;color:var(--text-primary)}
+.course-path-footer{display:flex;justify-content:flex-end}
+.btn-course-path{display:inline-flex;align-items:center;gap:var(--space-2);padding:var(--space-3) var(--space-6);font-size:var(--text-sm);font-weight:600;border-radius:var(--radius-lg);transition:all var(--transition-base)}
+
+.empty-state{text-align:center;padding:var(--space-16) var(--space-8);background:var(--bg-white);border-radius:var(--radius-xl);border:2px dashed var(--border-medium);margin-bottom:var(--space-8)}
+.empty-state-icon{font-size:4rem;margin-bottom:var(--space-4);opacity:.6}
+.empty-state-title{font-size:var(--text-2xl);font-weight:700;color:var(--text-primary);margin-bottom:var(--space-3)}
+.empty-state-description{color:var(--text-muted);font-size:var(--text-base);margin-bottom:0}
+
+@media(max-width:767.98px){
+    .courses-filter-panel{padding:var(--space-4)}
+    .filter-dropdowns{grid-template-columns:1fr}
+    .path-visual-track{justify-content:flex-start}
+    .course-path-item{gap:var(--space-3)}
+    .course-path-marker{width:36px}
+    .course-path-number{width:36px;height:36px;font-size:.875rem}
+    .course-path-top{flex-direction:column;gap:var(--space-3)}
+    .course-path-icon{width:48px;height:48px;font-size:1.25rem}
+    .course-path-card-body{padding:var(--space-5)}
+    .course-path-meta{gap:var(--space-3)}
+    .btn-course-path{width:100%;justify-content:center}
+    .empty-state{padding:var(--space-12) var(--space-4)}
+}
+</style>
+
+{% block extra_js %}
+<script>
+(function(){
+    var searchInput=document.getElementById('search-input');
+    var categoryFilter=document.getElementById('category-filter');
+    var levelFilter=document.getElementById('level-filter');
+    
+    function buildUrl(){
+        var params=new URLSearchParams();
+        if(searchInput&&searchInput.value.trim())params.set('search',searchInput.value.trim());
+        if(categoryFilter&&categoryFilter.value!=='all')params.set('category',categoryFilter.value);
+        if(levelFilter&&levelFilter.value!=='all')params.set('level',levelFilter.value);
+        return '/courses'+(params.toString()?'?'+params.toString():'');
+    }
+    
+    if(categoryFilter)categoryFilter.addEventListener('change',function(){window.location.href=buildUrl()});
+    if(levelFilter)levelFilter.addEventListener('change',function(){window.location.href=buildUrl()});
+    if(searchInput){
+        var searchTimeout;
+        searchInput.addEventListener('input',function(){
+            clearTimeout(searchTimeout);
+            searchTimeout=setTimeout(function(){window.location.href=buildUrl()},500);
+        });
+        searchInput.addEventListener('keydown',function(e){if(e.key==='Enter'){clearTimeout(searchTimeout);window.location.href=buildUrl()}});
+    }
+})();
+</script>
+{% endblock %}
+{% endblock %}

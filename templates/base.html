@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="description" content="{% block meta_description %}Python编程实训平台 - 一站式Python在线学习，提供系统化课程、编码练习、分级考试，从入门到精通掌握Python编程{% endblock %}">
+    <meta name="keywords" content="{% block meta_keywords %}Python学习, Python入门, Python教程, 在线编程, Python练习{% endblock %}">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="{% block canonical_url %}{{ request.url }}{% endblock %}">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="{% block og_title %}Python编程实训平台 - 从零开始掌握Python编程{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}一站式Python在线学习平台，提供系统化课程、编码练习、分级考试{% endblock %}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ request.url }}">
+    <meta property="og:site_name" content="Python编程实训平台">
+
+    <!-- Twitter Cards -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{% block twitter_title %}Python编程实训平台{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}一站式Python在线学习平台{% endblock %}">
+
+    <title>{% block title %}Python编程实训平台{% endblock %}</title>
+    
+    <style>
+    /* ===== CSS变量系统 ===== */
+    :root{
+        --primary:#4f46e5;--primary-dark:#4338ca;--primary-light:#818cf8;
+        --gray-900:#0f172a;--gray-800:#1f2937;--gray-700:#374151;--gray-600:#4b5563;--gray-500:#6b7280;--gray-400:#9ca3af;--gray-300:#d1d5db;--gray-200:#e2e8f0;--gray-100:#f3f4f6;--gray-50:#f9fafb;
+        --success:#059669;--success-dark:#047857;--success-light:#d1fae5;
+        --danger:#dc2626;--danger-dark:#b91c1c;--danger-light:#fee2e2;
+        --warning:#b45309;--warning-dark:#92400e;--warning-light:#fef3c7;
+        --info:#0ea5e9;--info-dark:#0369a1;
+        --white:#ffffff;--black:#000000;
+        --navbar-bg:#1a365d;--navbar-text:#f5f5f5;--navbar-hover:#60a5fa;--navbar-active-bg:rgba(255,255,255,.12);
+        --font-sans:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Helvetica Neue",Arial,sans-serif;
+        --space-1:.25rem;--space-2:.5rem;--space-3:.75rem;--space-4:1rem;--space-6:1.5rem;
+        --radius:.375rem;--radius-md:.5rem;--radius-lg:.75rem;
+        --shadow-sm:0 1px 3px rgba(0,0,0,.1);--shadow-md:0 4px 6px rgba(0,0,0,.1);
+    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    html{-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4}
+    body{font-family:var(--font-sans);background:var(--gray-50);color:var(--gray-900);line-height:1.5;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+    img,svg,video,canvas{max-width:100%;height:auto;display:block}
+
+    /* ===== 导航栏 - 高对比度设计 ===== */
+    .navbar{background:var(--navbar-bg);padding:.75rem 0;position:sticky;top:0;z-index:1000;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+    .navbar .container{display:flex;align-items:center;justify-content:space-between;max-width:1280px;margin:0 auto;padding:0 var(--space-4)}
+    .navbar-brand{color:var(--white)!important;font-weight:800;font-size:1.25rem;text-decoration:none;display:flex;align-items:center;gap:.5rem;letter-spacing:.02em}
+    .navbar-brand i{background:linear-gradient(135deg,var(--primary),#06b6d4);color:var(--white);width:36px;height:36px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-style:normal;font-size:.875rem;font-weight:700;box-shadow:0 2px 4px rgba(0,0,0,.2)}
+    .nav-links{display:flex;gap:.25rem;list-style:none;align-items:center;margin:0;padding:0}
+    .nav-links a{color:var(--navbar-text);padding:.5rem 1rem;border-radius:var(--radius);transition:all .2s;font-weight:500;font-size:.875rem;text-decoration:none;display:block}
+    .nav-links a:hover{color:var(--navbar-hover);background:var(--navbar-active-bg)}
+    .nav-links a.active{color:var(--white);background:var(--navbar-active-bg);font-weight:600;box-shadow:inset 0 1px 2px rgba(0,0,0,.2)}
+    .nav-links a:focus-visible{outline:2px solid var(--navbar-hover);outline-offset:2px;border-radius:var(--radius)}
+
+    /* 下拉菜单 */
+    .dropdown{position:relative}
+    .dropdown-toggle{color:var(--navbar-text)!important}
+    .dropdown-menu{display:none;position:absolute;top:calc(100% + .5rem);right:0;background:var(--white);border-radius:var(--radius-lg);box-shadow:0 10px 25px rgba(0,0,0,.2);padding:.5rem;min-width:200px;z-index:1001;border:1px solid var(--gray-200)}
+    .dropdown-menu li{list-style:none}
+    .dropdown-menu a{display:block;padding:.5rem 1rem;color:var(--gray-700);border-radius:var(--radius);text-decoration:none;font-size:.875rem;font-weight:500;transition:all .15s}
+    .dropdown-menu a:hover{background:var(--primary-light);color:var(--white)}
+    .dropdown:hover .dropdown-menu,.dropdown:focus-within .dropdown-menu{display:block}
+    .dropdown-divider{margin:.5rem 0;border:none;border-top:1px solid var(--gray-200)}
+
+    /* 汉堡菜单按钮 */
+    .navbar-toggler{display:none;background:none;border:2px solid rgba(255,255,255,.3);cursor:pointer;padding:.5rem;color:var(--white);font-size:1.5rem;border-radius:var(--radius);transition:all .2s}
+    .navbar-toggler:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.6)}
+    .navbar-toggler:focus-visible{outline:2px solid var(--navbar-hover);outline-offset:2px}
+
+    /* 跳过链接 */
+    .skip-link{position:absolute;top:-40px;left:0;background:var(--primary);color:var(--white);padding:8px 16px;z-index:1001;text-decoration:none;border-radius:0 0 var(--radius) 0;font-weight:600}
+    .skip-link:focus{top:0}
+
+    /* 警告提示 */
+    .alert{padding:.75rem 1.25rem;margin:1rem auto;max-width:1280px;border-radius:var(--radius-md);font-weight:500}
+    .alert-success{background:var(--success-light);color:var(--success-dark);border-left:4px solid var(--success)}
+    .alert-danger{background:var(--danger-light);color:var(--danger-dark);border-left:4px solid var(--danger)}
+    .alert-warning{background:var(--warning-light);color:var(--warning-dark);border-left:4px solid var(--warning)}
+    .alert-info{background:#e0f2fe;color:var(--info-dark);border-left:4px solid var(--info)}
+
+    /* ===== 响应式断点系统 ===== */
+    /* 平板断点: 768px - 1023px */
+    @media(max-width:1023px) and (min-width:768px){
+        .navbar .container{padding:0 var(--space-4)}
+        .nav-links a{padding:.5rem .75rem;font-size:.8125rem}
+    }
+
+    /* 移动端断点: < 768px */
+    @media(max-width:767.98px){
+        .navbar-toggler{display:block}
+        .nav-links{display:none;position:fixed;top:0;left:0;bottom:0;width:280px;max-width:85vw;background:var(--navbar-bg);flex-direction:column;padding:var(--space-6) var(--space-4);box-shadow:4px 0 20px rgba(0,0,0,.3);z-index:2000;transform:translateX(-100%);transition:transform .3s ease;overflow-y:auto;gap:.25rem;margin:0}
+        .nav-links.show{transform:translateX(0);display:flex}
+        .nav-links a{padding:.75rem 1rem;border-radius:var(--radius-md);color:var(--navbar-text);font-size:1rem}
+        .nav-links a:hover{background:rgba(255,255,255,.1);color:var(--navbar-hover)}
+        .nav-links a.active{background:rgba(255,255,255,.15);color:var(--white)}
+        .dropdown-menu{position:static;display:none;background:rgba(0,0,0,.2);border:none;box-shadow:none;padding-left:var(--space-4)}
+        .dropdown:hover .dropdown-menu,.dropdown:focus-within .dropdown-menu{display:block}
+        .dropdown-menu a{color:var(--navbar-text)}
+        .nav-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:1999;opacity:0;pointer-events:none;transition:opacity .3s ease}
+        .nav-overlay.show{opacity:1;pointer-events:auto}
+    }
+    </style>
+    
+    <link rel="preload" href="{{ url_for('static', filename='css/main.min.css') }}" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="{{ url_for('static', filename='css/main.min.css') }}"></noscript>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <a href="#main-content" class="skip-link">跳转到主内容</a>
+    
+    <div class="nav-overlay" id="navOverlay" aria-hidden="true"></div>
+    
+    <nav class="navbar" role="navigation" aria-label="主导航">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('index') }}" aria-label="Python实训平台首页">
+                <i>Py</i> Python实训平台
+            </a>
+            <button class="navbar-toggler" type="button" aria-label="切换导航菜单" aria-expanded="false" aria-controls="navLinks">
+                &#9776;
+            </button>
+            <ul class="nav-links" id="navLinks" role="menubar">
+                <li role="none"><a href="{{ url_for('index') }}" role="menuitem">首页</a></li>
+                <li role="none"><a href="{{ url_for('courses') }}" role="menuitem">课程</a></li>
+                <li role="none"><a href="{{ url_for('exercises') }}" role="menuitem">练习</a></li>
+                <li role="none"><a href="{{ url_for('exams') }}" role="menuitem">考试</a></li>
+                <li role="none"><a href="{{ url_for('community') }}" role="menuitem">社区</a></li>
+                <li role="none"><a href="{{ url_for('resources') }}" role="menuitem">资源</a></li>
+                {% if current_user.is_authenticated %}
+                <li class="dropdown" role="none">
+                    <a href="#" class="dropdown-toggle dropdown-trigger" aria-haspopup="true" aria-expanded="false" tabindex="0" role="menuitem">
+                        {{ current_user.username }}
+                    </a>
+                    <ul class="dropdown-menu" role="menu">
+                        <li><a href="{{ url_for('profile') }}">个人中心</a></li>
+                        <li><a href="{{ url_for('progress') }}">学习进度</a></li>
+                        <li><a href="{{ url_for('report') }}">学习报告</a></li>
+                        {% if current_user.role == 'admin' %}
+                        <li><a href="{{ url_for('admin_panel') }}">管理后台</a></li>
+                        {% endif %}
+                        <li><hr style="margin:.5rem 0;border:none;border-top:1px solid #e5e7eb"></li>
+                        <li><a href="{{ url_for('logout') }}">退出登录</a></li>
+                    </ul>
+                </li>
+                {% else %}
+                <li role="none"><a href="{{ url_for('login') }}" role="menuitem">登录</a></li>
+                <li role="none"><a href="{{ url_for('register') }}" class="btn btn-primary btn-sm" style="margin-left:.5rem" role="menuitem">免费注册</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <main id="main-content" role="main" class="page-transition">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}" role="alert" aria-live="polite">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <div class="row">
+                <div>
+                    <h5>
+                        <i style="background:linear-gradient(135deg,#4f46e5,#0891b2);padding:4px 8px;border-radius:4px;color:#fff;font-style:normal;font-size:.875rem">Py</i> Python编程实训平台
+                    </h5>
+                    <p>一站式Python学习平台，提供课程学习、编码练习、考核评估等全方位服务。</p>
+                </div>
+                <div>
+                    <h5>快速链接</h5>
+                    <ul>
+                        <li><a href="{{ url_for('courses') }}">课程中心</a></li>
+                        <li><a href="{{ url_for('exercises') }}">练习题库</a></li>
+                        <li><a href="{{ url_for('community') }}">学习社区</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h5>联系我们</h5>
+                    <p>
+                        support@python-platform.com<br>
+                        400-123-4567
+                    </p>
+                </div>
+            </div>
+            <hr>
+            <p>&copy; 2024 Python编程实训平台. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.min.js') }}" defer></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,1459 @@
+{% extends "base.html" %}
+
+{% block title %}{{ exercise.title }} - Python编程实训平台{% endblock %}
+{% block meta_description %}{{ exercise.title }} - Python编程练习，{{ exercise.description[:100] }}...{% endblock %}
+{% block meta_keywords %}Python练习, {{ exercise.category }}, 编程练习, Python编程{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/codemirror.min.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/codemirror-dracula.min.css') }}">
+<style>
+/* Toast 通知 */
+.toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.toast {
+    padding: 12px 20px;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: toastSlideIn 0.3s ease, toastFadeOut 0.3s ease 2.7s;
+    max-width: 320px;
+    word-break: break-word;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.toast.success { background: linear-gradient(135deg, #059669, #047857); }
+.toast.error { background: linear-gradient(135deg, #dc2626, #b91c1c); }
+.toast.warning { background: linear-gradient(135deg, #b45309, #92400e); }
+.toast.info { background: linear-gradient(135deg, #4f46e5, #4338ca); }
+@keyframes toastSlideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+@keyframes toastFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+/* 练习页面布局 */
+.exercise-layout {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    gap: var(--space-6);
+    margin-bottom: var(--space-6);
+}
+@media (max-width: 992px) {
+    .exercise-layout { grid-template-columns: 1fr; }
+}
+
+/* 左侧题目信息 */
+.exercise-info-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    height: fit-content;
+}
+.exercise-info-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--space-4);
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+.exercise-info-title {
+    font-size: var(--text-xl);
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.3;
+}
+.exercise-info-desc {
+    color: var(--text-secondary);
+    line-height: var(--leading-relaxed);
+    margin-bottom: var(--space-4);
+    font-size: var(--text-base);
+}
+.exercise-info-meta {
+    display: flex;
+    gap: var(--space-4);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-4);
+    padding: var(--space-3) 0;
+    border-top: 1px solid var(--border-light);
+    border-bottom: 1px solid var(--border-light);
+}
+.exercise-info-meta span {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+}
+.exercise-hint-box {
+    background: var(--warning-light);
+    border: 1px solid var(--warning-light);
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    margin-top: var(--space-4);
+}
+.exercise-hint-box summary {
+    font-weight: 600;
+    color: var(--warning-dark);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    user-select: none;
+}
+.exercise-hint-box p {
+    color: var(--warning-dark);
+    margin-top: var(--space-2);
+    margin-bottom: 0;
+    font-size: var(--text-sm);
+    line-height: var(--leading-relaxed);
+}
+
+/* 右侧编辑器区域 */
+.exercise-editor-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    display: flex;
+    flex-direction: column;
+}
+.editor-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-3);
+    flex-wrap: wrap;
+    gap: var(--space-2);
+}
+.editor-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+.editor-toolbar-title {
+    font-weight: 700;
+    font-size: var(--text-base);
+    color: var(--text-primary);
+    margin: 0;
+}
+.editor-toolbar-badge {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    background: var(--bg-gray-100);
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--radius-sm);
+}
+.editor-toolbar-actions {
+    display: flex;
+    gap: var(--space-2);
+}
+.editor-toolbar-settings {
+    display: flex;
+    gap: var(--space-2);
+    align-items: center;
+}
+
+/* CodeMirror 样式增强 */
+.CodeMirror {
+    border: 2px solid var(--border-medium);
+    border-radius: var(--radius-lg);
+    font-family: 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: 14px;
+    line-height: 1.6;
+    height: 400px !important;
+    min-height: 400px;
+    background: #1e1e2e;
+}
+.CodeMirror-scroll { min-height: 400px; }
+.CodeMirror-gutters {
+    background: #1e1e2e;
+    border-right: 1px solid #313244;
+}
+.CodeMirror-linenumber { color: #6c7086; }
+.CodeMirror-cursor { border-left: 2px solid #a6adc8; }
+.CodeMirror-selected { background: #313244; }
+.CodeMirror-activeline-background { background: rgba(108, 112, 134, 0.1); }
+
+/* 主题切换 */
+.CodeMirror.light-theme {
+    background: #fafafa;
+    color: #333;
+}
+.CodeMirror.light-theme .CodeMirror-gutters {
+    background: #f0f0f0;
+    border-right: 1px solid #ddd;
+}
+.CodeMirror.light-theme .CodeMirror-linenumber { color: #999; }
+.CodeMirror.light-theme .CodeMirror-cursor { border-left: 2px solid #333; }
+.CodeMirror.light-theme .CodeMirror-selected { background: #b3d4fc; }
+
+/* 专注模式 */
+.focus-mode .exercise-info-card,
+.focus-mode .output-card,
+.focus-mode .breadcrumb,
+.focus-mode .editor-toolbar {
+    display: none !important;
+}
+.focus-mode .exercise-editor-card {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9998;
+    border-radius: 0;
+    padding: 0;
+}
+.focus-mode .CodeMirror {
+    height: 100vh !important;
+    border: none;
+    border-radius: 0;
+}
+.focus-mode-exit {
+    position: fixed;
+    top: 10px;
+    right: 10px;
+    z-index: 9999;
+    background: var(--primary-500);
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    font-weight: 600;
+}
+
+/* 操作按钮 */
+.editor-actions {
+    display: flex;
+    gap: var(--space-3);
+    margin-top: var(--space-4);
+    flex-wrap: wrap;
+}
+.btn-run {
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+    color: #fff;
+    border: none;
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-lg);
+    font-weight: 600;
+    font-size: var(--text-base);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+.btn-run:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+    filter: brightness(1.1);
+}
+.btn-run:active:not(:disabled) { transform: translateY(0); }
+.btn-run:disabled { opacity: 0.7; cursor: not-allowed; }
+.btn-run.running { background: linear-gradient(135deg, var(--warning), var(--warning-dark)); }
+
+.btn-submit {
+    background: linear-gradient(135deg, var(--success), var(--success-dark));
+    color: #fff;
+    border: none;
+    padding: var(--space-3) var(--space-6);
+    border-radius: var(--radius-lg);
+    font-weight: 600;
+    font-size: var(--text-base);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+.btn-submit:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+    filter: brightness(1.1);
+}
+.btn-submit:disabled { opacity: 0.7; cursor: not-allowed; }
+
+.btn-reset {
+    background: var(--bg-gray-100);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-medium);
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-lg);
+    font-weight: 500;
+    font-size: var(--text-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+.btn-reset:hover {
+    background: var(--bg-gray-200);
+    border-color: var(--border-dark);
+}
+.btn-reset:active { transform: scale(0.97); }
+
+.btn-settings {
+    background: var(--bg-white);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-medium);
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-lg);
+    font-weight: 500;
+    font-size: var(--text-sm);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.btn-settings:hover {
+    background: var(--bg-gray-50);
+    border-color: var(--primary-500);
+    color: var(--primary-600);
+}
+
+.keyboard-hint {
+    font-size: var(--text-xs);
+    color: var(--text-muted);
+    margin-top: var(--space-3);
+    text-align: center;
+}
+
+/* 输出区域 */
+.output-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+}
+.output-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-4);
+}
+.output-title {
+    font-weight: 700;
+    font-size: var(--text-lg);
+    color: var(--text-primary);
+    margin: 0;
+}
+.output-clear {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius);
+    transition: all 0.2s;
+}
+.output-clear:hover {
+    color: var(--danger);
+    background: var(--danger-light);
+}
+.output-box {
+    background: #1e1e2e;
+    border-radius: var(--radius-lg);
+    padding: var(--space-4);
+    min-height: 120px;
+    font-family: 'Fira Code', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #cdd6f4;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-x: auto;
+    border: 1px solid #313244;
+    transition: border-color 0.3s ease;
+}
+.output-box.output-success {
+    border-color: var(--success);
+    box-shadow: inset 0 0 0 1px var(--success);
+}
+.output-box.output-error {
+    border-color: var(--danger);
+    box-shadow: inset 0 0 0 1px var(--danger);
+    color: #f38ba8;
+}
+.output-placeholder {
+    color: #6c7086;
+    font-style: italic;
+}
+.output-loading {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    color: var(--primary-light);
+}
+
+/* 加载动画 */
+.spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 设置面板 */
+.settings-panel {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    padding: var(--space-6);
+    z-index: 10000;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    min-width: 400px;
+    max-width: 90vw;
+}
+.settings-panel-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 9999;
+}
+.settings-panel h3 {
+    margin: 0 0 var(--space-4) 0;
+    font-size: var(--text-lg);
+}
+.settings-group {
+    margin-bottom: var(--space-4);
+}
+.settings-group label {
+    display: block;
+    font-weight: 600;
+    font-size: var(--text-sm);
+    margin-bottom: var(--space-2);
+    color: var(--text-primary);
+}
+.settings-group select,
+.settings-group input {
+    width: 100%;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+}
+.settings-actions {
+    display: flex;
+    gap: var(--space-3);
+    justify-content: flex-end;
+    margin-top: var(--space-4);
+}
+
+/* 查找替换对话框 */
+.search-dialog {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-lg);
+    padding: var(--space-3);
+    z-index: 100;
+    box-shadow: var(--shadow-lg);
+    min-width: 300px;
+}
+.search-dialog input {
+    width: 100%;
+    padding: var(--space-2);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius);
+    margin-bottom: var(--space-2);
+    font-size: var(--text-sm);
+}
+.search-dialog .search-options {
+    display: flex;
+    gap: var(--space-3);
+    margin-bottom: var(--space-2);
+}
+.search-dialog .search-options label {
+    font-size: var(--text-xs);
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+}
+.search-dialog .search-buttons {
+    display: flex;
+    gap: var(--space-2);
+}
+.search-dialog button {
+    padding: var(--space-1) var(--space-3);
+    border: 1px solid var(--border-medium);
+    background: var(--bg-gray-50);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-size: var(--text-xs);
+}
+.search-dialog button:hover {
+    background: var(--primary-50);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-6">
+    <nav aria-label="面包屑导航" class="breadcrumb mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('exercises') }}">练习题库</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ exercise.title }}</li>
+        </ol>
+    </nav>
+
+    <div class="exercise-layout">
+        <!-- 左侧：题目信息 -->
+        <div class="exercise-info-card">
+            <div class="exercise-info-header">
+                <h2 class="exercise-info-title">{{ exercise.title }}</h2>
+                <span class="badge badge-{{ exercise.difficulty_color }}">
+                    {{ exercise.difficulty_label }}
+                </span>
+            </div>
+            <p class="exercise-info-desc">{{ exercise.description }}</p>
+            <div class="exercise-info-meta">
+                <span>&#128204; 分类: {{ exercise.category }}</span>
+                <span>&#9201; 难度: {{ exercise.difficulty_label }}</span>
+            </div>
+            {% if exercise.hints %}
+            <details class="exercise-hint-box">
+                <summary>&#128161; 查看提示</summary>
+                <p>{{ exercise.hints }}</p>
+            </details>
+            {% endif %}
+        </div>
+
+        <!-- 右侧：代码编辑器 -->
+        <div class="exercise-editor-card">
+            <div class="editor-toolbar">
+                <div class="editor-toolbar-left">
+                    <h3 class="editor-toolbar-title">&#128187; 代码编辑器</h3>
+                    <span class="editor-toolbar-badge">Python 3</span>
+                </div>
+                <div class="editor-toolbar-actions">
+                    <button class="btn-settings" onclick="toggleSettings()" title="编辑器设置">&#9881; 设置</button>
+                    <button class="btn-settings" onclick="toggleFocusMode()" title="专注模式">&#128173; 专注</button>
+                    <button class="btn-settings" onclick="toggleSearch()" title="查找替换">&#128269; 查找</button>
+                    <button class="btn-reset" id="resetBtn" onclick="resetCode()" title="重置为初始代码" type="button">
+                        &#8634; 重置
+                    </button>
+                    <button class="btn-reset" id="clearBtn" onclick="clearCode()" title="完全清空编辑器" type="button">
+                        &#128465; 清空
+                    </button>
+                </div>
+            </div>
+
+            <!-- textarea初始为空，由JS控制内容 -->
+            <textarea id="codeEditor" aria-label="Python代码编辑器" spellcheck="false"></textarea>
+
+            <!-- 查找替换对话框 -->
+            <div id="searchDialog" class="search-dialog" style="display: none;">
+                <input type="text" id="searchInput" placeholder="查找..." onkeydown="if(event.key==='Enter') findNext()">
+                <input type="text" id="replaceInput" placeholder="替换为...">
+                <div class="search-options">
+                    <label><input type="checkbox" id="caseSensitive"> 区分大小写</label>
+                    <label><input type="checkbox" id="wholeWord"> 全词匹配</label>
+                    <label><input type="checkbox" id="useRegex"> 正则表达式</label>
+                </div>
+                <div class="search-buttons">
+                    <button onclick="findNext()">查找下一个</button>
+                    <button onclick="findPrev()">查找上一个</button>
+                    <button onclick="replaceOne()">替换</button>
+                    <button onclick="replaceAll()">全部替换</button>
+                    <button onclick="toggleSearch()">关闭</button>
+                </div>
+            </div>
+
+            <div class="editor-actions">
+                <button class="btn-run" id="runCodeBtn" onclick="runCode()" type="button">
+                    <span id="runCodeIcon">&#9658;</span>
+                    <span id="runCodeText">运行代码</span>
+                </button>
+                <button class="btn-submit" id="submitCodeBtn" onclick="submitCode()" type="button">
+                    <span id="submitCodeIcon">&#10003;</span>
+                    <span id="submitCodeText">提交答案</span>
+                </button>
+            </div>
+            <p class="keyboard-hint">
+                &#9000; Ctrl + Enter 快速运行 &nbsp;|&nbsp; Ctrl + S 保存草稿 &nbsp;|&nbsp; Ctrl + F 查找 &nbsp;|&nbsp; Ctrl + H 替换
+            </p>
+        </div>
+    </div>
+
+    <!-- 输出区域 -->
+    <div class="output-card">
+        <div class="output-header">
+            <h5 class="output-title">&#128221; 运行结果</h5>
+            <button class="output-clear" onclick="clearOutput()" type="button">清除</button>
+        </div>
+        <div id="output" class="output-box" aria-live="polite" role="status">
+            <span class="output-placeholder">点击「运行代码」查看执行结果...</span>
+        </div>
+    </div>
+</div>
+
+<!-- 设置面板 -->
+<div id="settingsOverlay" class="settings-panel-overlay" style="display: none;" onclick="toggleSettings()"></div>
+<div id="settingsPanel" class="settings-panel" style="display: none;">
+    <h3>&#9881; 编辑器设置</h3>
+    <div class="settings-group">
+        <label>主题</label>
+        <select id="themeSelect" onchange="applySettings()">
+            <option value="dracula">Dracula (暗色)</option>
+            <option value="default">Default (亮色)</option>
+        </select>
+    </div>
+    <div class="settings-group">
+        <label>字体大小</label>
+        <select id="fontSizeSelect" onchange="applySettings()">
+            <option value="12">12px</option>
+            <option value="14" selected>14px</option>
+            <option value="16">16px</option>
+            <option value="18">18px</option>
+            <option value="20">20px</option>
+        </select>
+    </div>
+    <div class="settings-group">
+        <label>缩进大小</label>
+        <select id="indentSizeSelect" onchange="applySettings()">
+            <option value="2">2 空格</option>
+            <option value="4" selected>4 空格</option>
+            <option value="8">8 空格</option>
+        </select>
+    </div>
+    <div class="settings-group">
+        <label>行高</label>
+        <select id="lineHeightSelect" onchange="applySettings()">
+            <option value="1.4">紧凑</option>
+            <option value="1.6" selected>标准</option>
+            <option value="1.8">宽松</option>
+            <option value="2.0">非常宽松</option>
+        </select>
+    </div>
+    <div class="settings-group">
+        <label>自动保存</label>
+        <select id="autoSaveSelect" onchange="applySettings()">
+            <option value="0">关闭</option>
+            <option value="30">30秒</option>
+            <option value="60" selected>60秒</option>
+            <option value="300">5分钟</option>
+        </select>
+    </div>
+    <div class="settings-group">
+        <label>按键模式</label>
+        <select id="keyMapSelect" onchange="applySettings()">
+            <option value="default" selected>默认</option>
+            <option value="vim">Vim</option>
+            <option value="emacs">Emacs</option>
+        </select>
+    </div>
+    <div class="settings-group">
+        <label>
+            <input type="checkbox" id="lineNumbersCheck" checked onchange="applySettings()"> 显示行号
+        </label>
+    </div>
+    <div class="settings-group">
+        <label>
+            <input type="checkbox" id="foldCheck" checked onchange="applySettings()"> 启用代码折叠
+        </label>
+    </div>
+    <div class="settings-group">
+        <label>
+            <input type="checkbox" id="matchBracketsCheck" checked onchange="applySettings()"> 括号匹配
+        </label>
+    </div>
+    <div class="settings-group">
+        <label>
+            <input type="checkbox" id="closeBracketsCheck" checked onchange="applySettings()"> 自动闭合括号
+        </label>
+    </div>
+    <div class="settings-actions">
+        <button class="btn-reset" onclick="resetSettings()">恢复默认</button>
+        <button class="btn-run" onclick="toggleSettings()">确定</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/codemirror.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/codemirror-python.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/codemirror-closebrackets.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/codemirror-matchbrackets.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/codemirror-activeline.min.js') }}"></script>
+<script>
+// ===================== 全局变量 =====================
+var editor = null;
+var originalCode = {{ exercise.starter_code | tojson }};
+var exerciseId = {{ exercise.id }};
+var isEditorReady = false;
+var autoSaveInterval = null;
+var editorSettings = {
+    theme: 'dracula',
+    fontSize: 14,
+    indentUnit: 4,
+    lineHeight: 1.6,
+    autoSave: 60,
+    keyMap: 'default',
+    lineNumbers: true,
+    foldGutter: true,
+    matchBrackets: true,
+    autoCloseBrackets: true
+};
+
+// ===================== Toast 通知系统 =====================
+function showToast(message, type) {
+    type = type || 'info';
+    var container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+    var toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    var icon = type === 'success' ? '&#10003;' : (type === 'error' ? '&#10007;' : (type === 'warning' ? '&#9888;' : '&#9432;'));
+    toast.innerHTML = '<span>' + icon + '</span><span>' + escapeHtml(message) + '</span>';
+    container.appendChild(toast);
+    setTimeout(function() {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 3000);
+}
+
+function escapeHtml(text) {
+    var div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ===================== 编辑器配置常量 =====================
+var EDITOR_CONFIG = {
+    mode: 'python',
+    theme: 'dracula',
+    lineNumbers: true,
+    autoCloseBrackets: true,
+    matchBrackets: true,
+    styleActiveLine: true,
+    indentUnit: 4,
+    tabSize: 4,
+    lineWrapping: true,
+    viewportMargin: 10,
+    foldGutter: true,
+    gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
+    extraKeys: {
+        'Ctrl-Enter': function(cm) { runCode(); },
+        'Cmd-Enter': function(cm) { runCode(); },
+        'Ctrl-S': function(cm) { EditorDraftModule.save(); return false; },
+        'Ctrl-F': function(cm) { toggleSearch(); return false; },
+        'Ctrl-H': function(cm) { toggleSearch(); return false; },
+        'F11': function(cm) { toggleFocusMode(); },
+        'Esc': function(cm) { closeSearchDialog(); }
+    }
+};
+
+// ===================== 编辑器初始化模块 =====================
+var EditorInitModule = {
+    init: function(textareaId, options) {
+        textareaId = textareaId || 'codeEditor';
+        options = options || {};
+
+        var textarea = document.getElementById(textareaId);
+        if (!textarea) {
+            this._handleError('INIT_DOM_NOT_FOUND', 'textarea元素 #' + textareaId + ' 未找到');
+            return null;
+        }
+
+        if (typeof CodeMirror === 'undefined') {
+            this._handleError('INIT_LIB_NOT_LOADED', 'CodeMirror库未加载');
+            return null;
+        }
+
+        // 加载保存的设置
+        this._loadSettings();
+
+        var mergedConfig = this._mergeConfig(EDITOR_CONFIG, options);
+        mergedConfig = this._applySettingsToConfig(mergedConfig);
+
+        var cmInstance = null;
+        try {
+            cmInstance = CodeMirror.fromTextArea(textarea, mergedConfig);
+        } catch (e) {
+            this._handleError('INIT_CREATE_FAILED', '创建编辑器实例失败: ' + e.message);
+            return null;
+        }
+
+        try {
+            cmInstance.setSize('100%', '400px');
+        } catch (e) {
+            console.warn('[EditorInit] 设置尺寸失败:', e);
+        }
+
+        var initialContent = this._resolveInitialContent();
+        try {
+            cmInstance.setValue(initialContent);
+        } catch (e) {
+            this._handleError('INIT_SET_CONTENT_FAILED', '设置初始内容失败: ' + e.message);
+        }
+
+        setTimeout(function() {
+            try { cmInstance.focus(); } catch (e) { }
+        }, 50);
+
+        console.log('[EditorInit] 编辑器初始化成功');
+        return cmInstance;
+    },
+
+    _mergeConfig: function(defaultConfig, userConfig) {
+        var result = {};
+        for (var key in defaultConfig) {
+            if (defaultConfig.hasOwnProperty(key)) {
+                result[key] = defaultConfig[key];
+            }
+        }
+        for (var key in userConfig) {
+            if (userConfig.hasOwnProperty(key)) {
+                result[key] = userConfig[key];
+            }
+        }
+        return result;
+    },
+
+    _resolveInitialContent: function() {
+        console.log('[EditorInit] 初始化为空白状态（默认策略）');
+        return '';
+    },
+
+    _loadSettings: function() {
+        try {
+            var saved = localStorage.getItem('editor_settings');
+            if (saved) {
+                var parsed = JSON.parse(saved);
+                for (var key in parsed) {
+                    if (editorSettings.hasOwnProperty(key)) {
+                        editorSettings[key] = parsed[key];
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[EditorInit] 加载设置失败:', e);
+        }
+    },
+
+    _applySettingsToConfig: function(config) {
+        config.theme = editorSettings.theme;
+        config.indentUnit = editorSettings.indentUnit;
+        config.tabSize = editorSettings.indentUnit;
+        config.lineNumbers = editorSettings.lineNumbers;
+        config.matchBrackets = editorSettings.matchBrackets;
+        config.autoCloseBrackets = editorSettings.autoCloseBrackets;
+        if (editorSettings.keyMap !== 'default') {
+            config.keyMap = editorSettings.keyMap;
+        }
+        return config;
+    },
+
+    _handleError: function(code, message) {
+        console.error('[EditorInit][' + code + '] ' + message);
+        showToast('编辑器初始化失败: ' + message, 'error');
+    }
+};
+
+// ===================== 设置面板功能 =====================
+function toggleSettings() {
+    var panel = document.getElementById('settingsPanel');
+    var overlay = document.getElementById('settingsOverlay');
+    if (panel.style.display === 'none') {
+        panel.style.display = 'block';
+        overlay.style.display = 'block';
+        loadSettingsToUI();
+    } else {
+        panel.style.display = 'none';
+        overlay.style.display = 'none';
+    }
+}
+
+function loadSettingsToUI() {
+    document.getElementById('themeSelect').value = editorSettings.theme;
+    document.getElementById('fontSizeSelect').value = editorSettings.fontSize;
+    document.getElementById('indentSizeSelect').value = editorSettings.indentUnit;
+    document.getElementById('lineHeightSelect').value = editorSettings.lineHeight;
+    document.getElementById('autoSaveSelect').value = editorSettings.autoSave;
+    document.getElementById('keyMapSelect').value = editorSettings.keyMap;
+    document.getElementById('lineNumbersCheck').checked = editorSettings.lineNumbers;
+    document.getElementById('foldCheck').checked = editorSettings.foldGutter;
+    document.getElementById('matchBracketsCheck').checked = editorSettings.matchBrackets;
+    document.getElementById('closeBracketsCheck').checked = editorSettings.autoCloseBrackets;
+}
+
+function applySettings() {
+    editorSettings.theme = document.getElementById('themeSelect').value;
+    editorSettings.fontSize = parseInt(document.getElementById('fontSizeSelect').value);
+    editorSettings.indentUnit = parseInt(document.getElementById('indentSizeSelect').value);
+    editorSettings.lineHeight = parseFloat(document.getElementById('lineHeightSelect').value);
+    editorSettings.autoSave = parseInt(document.getElementById('autoSaveSelect').value);
+    editorSettings.keyMap = document.getElementById('keyMapSelect').value;
+    editorSettings.lineNumbers = document.getElementById('lineNumbersCheck').checked;
+    editorSettings.foldGutter = document.getElementById('foldCheck').checked;
+    editorSettings.matchBrackets = document.getElementById('matchBracketsCheck').checked;
+    editorSettings.autoCloseBrackets = document.getElementById('closeBracketsCheck').checked;
+
+    // 保存到本地存储
+    try {
+        localStorage.setItem('editor_settings', JSON.stringify(editorSettings));
+    } catch (e) {
+        console.warn('保存设置失败:', e);
+    }
+
+    // 应用到编辑器
+    if (editor) {
+        editor.setOption('theme', editorSettings.theme);
+        editor.setOption('indentUnit', editorSettings.indentUnit);
+        editor.setOption('tabSize', editorSettings.indentUnit);
+        editor.setOption('lineNumbers', editorSettings.lineNumbers);
+        editor.setOption('matchBrackets', editorSettings.matchBrackets);
+        editor.setOption('autoCloseBrackets', editorSettings.autoCloseBrackets);
+        if (editorSettings.keyMap !== 'default') {
+            editor.setOption('keyMap', editorSettings.keyMap);
+        }
+    }
+
+    // 应用CSS样式
+    var cmElement = document.querySelector('.CodeMirror');
+    if (cmElement) {
+        cmElement.style.fontSize = editorSettings.fontSize + 'px';
+        cmElement.style.lineHeight = editorSettings.lineHeight;
+        if (editorSettings.theme === 'default') {
+            cmElement.classList.add('light-theme');
+        } else {
+            cmElement.classList.remove('light-theme');
+        }
+    }
+
+    // 设置自动保存
+    setupAutoSave();
+
+    showToast('设置已应用', 'success');
+}
+
+function resetSettings() {
+    editorSettings = {
+        theme: 'dracula',
+        fontSize: 14,
+        indentUnit: 4,
+        lineHeight: 1.6,
+        autoSave: 60,
+        keyMap: 'default',
+        lineNumbers: true,
+        foldGutter: true,
+        matchBrackets: true,
+        autoCloseBrackets: true
+    };
+    localStorage.removeItem('editor_settings');
+    loadSettingsToUI();
+    applySettings();
+    showToast('已恢复默认设置', 'success');
+}
+
+function setupAutoSave() {
+    if (autoSaveInterval) {
+        clearInterval(autoSaveInterval);
+        autoSaveInterval = null;
+    }
+    if (editorSettings.autoSave > 0) {
+        autoSaveInterval = setInterval(function() {
+            if (editor && isEditorReady) {
+                EditorDraftModule.save();
+            }
+        }, editorSettings.autoSave * 1000);
+    }
+}
+
+// ===================== 专注模式 =====================
+function toggleFocusMode() {
+    document.body.classList.toggle('focus-mode');
+    if (document.body.classList.contains('focus-mode')) {
+        var exitBtn = document.createElement('button');
+        exitBtn.className = 'focus-mode-exit';
+        exitBtn.textContent = '退出专注模式 (Esc)';
+        exitBtn.onclick = toggleFocusMode;
+        exitBtn.id = 'focusModeExitBtn';
+        document.body.appendChild(exitBtn);
+        if (editor) editor.refresh();
+    } else {
+        var exitBtn = document.getElementById('focusModeExitBtn');
+        if (exitBtn) exitBtn.remove();
+        if (editor) editor.refresh();
+    }
+}
+
+// ===================== 查找替换功能 =====================
+function toggleSearch() {
+    var dialog = document.getElementById('searchDialog');
+    if (dialog.style.display === 'none') {
+        dialog.style.display = 'block';
+        document.getElementById('searchInput').focus();
+    } else {
+        closeSearchDialog();
+    }
+}
+
+function closeSearchDialog() {
+    var dialog = document.getElementById('searchDialog');
+    dialog.style.display = 'none';
+    if (editor) editor.focus();
+}
+
+function findNext() {
+    if (!editor) return;
+    var query = document.getElementById('searchInput').value;
+    if (!query) return;
+    var caseFold = !document.getElementById('caseSensitive').checked;
+    editor.execCommand('findNext');
+}
+
+function findPrev() {
+    if (!editor) return;
+    editor.execCommand('findPrev');
+}
+
+function replaceOne() {
+    if (!editor) return;
+    var query = document.getElementById('searchInput').value;
+    var replacement = document.getElementById('replaceInput').value;
+    if (!query) return;
+    editor.execCommand('replace');
+}
+
+function replaceAll() {
+    if (!editor) return;
+    var query = document.getElementById('searchInput').value;
+    var replacement = document.getElementById('replaceInput').value;
+    if (!query) return;
+    editor.execCommand('replaceAll');
+}
+
+// ===================== 代码重置模块 =====================
+var ResetMode = {
+    TO_ORIGINAL: 'original',
+    TO_BLANK: 'blank',
+    TO_DRAFT: 'draft'
+};
+
+var EditorResetModule = {
+    reset: function(mode, skipConfirm) {
+        mode = mode || ResetMode.TO_ORIGINAL;
+        skipConfirm = skipConfirm || false;
+
+        if (!this._validateEditor()) {
+            return false;
+        }
+
+        var targetContent = this._resolveTargetContent(mode);
+        var currentContent = editor.getValue();
+
+        if (currentContent === targetContent) {
+            showToast('当前已经是目标状态', 'info');
+            return true;
+        }
+
+        if (!skipConfirm) {
+            var confirmMsg = this._buildConfirmMessage(mode);
+            if (!confirm(confirmMsg)) {
+                console.log('[EditorReset] 用户取消重置');
+                return false;
+            }
+        }
+
+        try {
+            editor.setValue(targetContent);
+            editor.clearHistory();
+            editor.setCursor({line: 0, ch: 0});
+            editor.setSelection({line: 0, ch: 0}, {line: 0, ch: 0});
+            if (editor.state && editor.state.search) {
+                editor.state.search = null;
+            }
+            editor.operation(function() {
+                editor.getAllMarks().forEach(function(mark) {
+                    if (mark.clear) mark.clear();
+                });
+            });
+            editor.scrollTo(0, 0);
+            editor.refresh();
+            editor.focus();
+
+            this._cleanupState(mode);
+            this._onResetComplete(mode, targetContent);
+
+            console.log('[EditorReset] 重置成功，模式:', mode);
+            return true;
+
+        } catch (e) {
+            this._handleError('RESET_EXEC_FAILED', '重置执行失败: ' + e.message);
+            return false;
+        }
+    },
+
+    resetToOriginal: function() {
+        return this.reset(ResetMode.TO_ORIGINAL, false);
+    },
+
+    resetToBlank: function() {
+        return this.reset(ResetMode.TO_BLANK, false);
+    },
+
+    _validateEditor: function() {
+        if (!editor) {
+            this._handleError('RESET_NO_EDITOR', '编辑器实例不存在');
+            return false;
+        }
+        if (!isEditorReady) {
+            this._handleError('RESET_NOT_READY', '编辑器尚未就绪');
+            return false;
+        }
+        return true;
+    },
+
+    _resolveTargetContent: function(mode) {
+        switch (mode) {
+            case ResetMode.TO_ORIGINAL:
+                return originalCode || '';
+            case ResetMode.TO_BLANK:
+                return '';
+            case ResetMode.TO_DRAFT:
+                try {
+                    var draft = localStorage.getItem('exercise_' + exerciseId + '_draft');
+                    return draft !== null ? draft : (originalCode || '');
+                } catch (e) {
+                    return originalCode || '';
+                }
+            default:
+                return originalCode || '';
+        }
+    },
+
+    _buildConfirmMessage: function(mode) {
+        var baseMsg = '确定要重置代码吗？';
+        var detailMsg = '';
+        switch (mode) {
+            case ResetMode.TO_ORIGINAL:
+                detailMsg = '编辑器将恢复到预设初始代码，当前内容将被覆盖。';
+                break;
+            case ResetMode.TO_BLANK:
+                detailMsg = '编辑器将被清空为空白状态，当前内容将被删除。';
+                break;
+            case ResetMode.TO_DRAFT:
+                detailMsg = '编辑器将恢复到上次保存的草稿。';
+                break;
+        }
+        return baseMsg + '\n' + detailMsg + '\n此操作不可撤销。';
+    },
+
+    _cleanupState: function(mode) {
+        try { clearOutput(); } catch (e) { }
+
+        if (mode === ResetMode.TO_ORIGINAL || mode === ResetMode.TO_BLANK) {
+            try {
+                localStorage.removeItem('exercise_' + exerciseId + '_draft');
+                var keysToRemove = [];
+                for (var i = 0; i < localStorage.length; i++) {
+                    var key = localStorage.key(i);
+                    if (key && key.indexOf('exercise_' + exerciseId) === 0) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(function(key) {
+                    localStorage.removeItem(key);
+                });
+            } catch (e) {
+                console.warn('[EditorReset] 清除草稿失败:', e);
+            }
+        }
+
+        try {
+            if (editor && editor.state) {
+                if (editor.state.completionActive) {
+                    editor.state.completionActive.close();
+                    editor.state.completionActive = null;
+                }
+                if (editor.state.overlays) {
+                    editor.state.overlays = [];
+                }
+            }
+        } catch (e) {
+            console.warn('[EditorReset] 清除编辑器内部状态失败:', e);
+        }
+    },
+
+    _onResetComplete: function(mode, content) {
+        var msg = '';
+        switch (mode) {
+            case ResetMode.TO_ORIGINAL:
+                msg = '代码已重置为初始状态';
+                break;
+            case ResetMode.TO_BLANK:
+                msg = '编辑器已清空';
+                break;
+            case ResetMode.TO_DRAFT:
+                msg = '已恢复草稿状态';
+                break;
+        }
+        showToast(msg, 'success');
+    },
+
+    _handleError: function(code, message) {
+        console.error('[EditorReset][' + code + '] ' + message);
+        showToast('重置失败: ' + message, 'error');
+    }
+};
+
+// ===================== 草稿管理模块 =====================
+var EditorDraftModule = {
+    save: function() {
+        if (!editor || !isEditorReady) {
+            showToast('编辑器未就绪', 'warning');
+            return false;
+        }
+        try {
+            localStorage.setItem('exercise_' + exerciseId + '_draft', editor.getValue());
+            showToast('草稿已保存到本地', 'success');
+            return true;
+        } catch (e) {
+            showToast('保存失败: ' + e.message, 'error');
+            return false;
+        }
+    },
+
+    load: function() {
+        try {
+            return localStorage.getItem('exercise_' + exerciseId + '_draft');
+        } catch (e) {
+            return null;
+        }
+    },
+
+    clear: function() {
+        try {
+            localStorage.removeItem('exercise_' + exerciseId + '_draft');
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+};
+
+// ===================== 页面加载入口 =====================
+document.addEventListener('DOMContentLoaded', function() {
+    editor = EditorInitModule.init('codeEditor');
+    isEditorReady = (editor !== null);
+
+    if (isEditorReady) {
+        console.log('[Main] 编辑器准备就绪');
+        setupAutoSave();
+    } else {
+        console.error('[Main] 编辑器初始化失败');
+    }
+});
+
+// ===================== 全局函数 =====================
+function resetCode() {
+    EditorResetModule.resetToOriginal();
+}
+
+function saveDraft() {
+    EditorDraftModule.save();
+}
+
+function clearCode() {
+    EditorResetModule.resetToBlank();
+}
+
+// ===================== 输出区域管理 =====================
+function setOutput(content, type) {
+    var outputEl = document.getElementById('output');
+    if (!outputEl) return;
+    outputEl.textContent = content;
+    outputEl.className = 'output-box';
+    if (type) outputEl.classList.add('output-' + type);
+}
+
+function setLoading(message) {
+    var outputEl = document.getElementById('output');
+    if (!outputEl) return;
+    outputEl.innerHTML = '<div class="output-loading"><span class="spinner"></span> ' + escapeHtml(message) + '</div>';
+    outputEl.className = 'output-box';
+}
+
+function clearOutput() {
+    var outputEl = document.getElementById('output');
+    if (!outputEl) return;
+    outputEl.innerHTML = '<span class="output-placeholder">点击「运行代码」查看执行结果...</span>';
+    outputEl.className = 'output-box';
+}
+
+// ===================== 按钮状态管理 =====================
+function setButtonLoading(btnId, iconId, textId, loadingText) {
+    var btn = document.getElementById(btnId);
+    var icon = document.getElementById(iconId);
+    var text = document.getElementById(textId);
+    if (!btn) return;
+    btn.disabled = true;
+    btn.dataset.originalText = text ? text.textContent : '';
+    if (icon) icon.innerHTML = '<span class="spinner"></span>';
+    if (text) text.textContent = loadingText;
+    btn.classList.add('running');
+}
+
+function setButtonReady(btnId, iconId, textId, originalIcon) {
+    var btn = document.getElementById(btnId);
+    var icon = document.getElementById(iconId);
+    var text = document.getElementById(textId);
+    if (!btn) return;
+    btn.disabled = false;
+    if (icon) icon.innerHTML = originalIcon;
+    if (text) text.textContent = btn.dataset.originalText || '';
+    btn.classList.remove('running');
+}
+
+// ===================== 运行代码 =====================
+function runCode() {
+    if (!isEditorReady || !editor) {
+        showToast('编辑器未初始化，请刷新页面重试', 'error');
+        return;
+    }
+
+    var code = editor.getValue();
+    if (!code || !code.trim()) {
+        setOutput('错误: 代码不能为空\n\n请在编辑器中输入代码后再运行。', 'error');
+        showToast('代码不能为空', 'error');
+        editor.focus();
+        return;
+    }
+
+    setLoading('正在执行代码...');
+    setButtonLoading('runCodeBtn', 'runCodeIcon', 'runCodeText', '执行中...');
+
+    fetch('/run_code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code })
+    })
+    .then(function(r) {
+        if (!r.ok) throw new Error('服务器响应错误: ' + r.status);
+        return r.json();
+    })
+    .then(function(data) {
+        setButtonReady('runCodeBtn', 'runCodeIcon', 'runCodeText', '&#9658;');
+        var output = data.output || '';
+        if (data.error) {
+            output += (output ? '\n' : '') + '【错误】\n' + data.error;
+            setOutput(output, 'error');
+            showToast('代码执行出错', 'error');
+        } else if (data.return_code !== 0) {
+            setOutput(output || '程序异常退出（返回码: ' + data.return_code + '）', 'error');
+            showToast('程序异常退出', 'warning');
+        } else {
+            setOutput(output || '（程序执行成功，无输出）', 'success');
+            showToast('代码执行成功', 'success');
+        }
+    })
+    .catch(function(err) {
+        setButtonReady('runCodeBtn', 'runCodeIcon', 'runCodeText', '&#9658;');
+        setOutput('网络错误: ' + err.message + '\n请检查网络连接或刷新页面重试。', 'error');
+        showToast('网络错误: ' + err.message, 'error');
+    });
+}
+
+// ===================== 提交答案 =====================
+function submitCode() {
+    if (!isEditorReady || !editor) {
+        showToast('编辑器未初始化，请刷新页面重试', 'error');
+        return;
+    }
+
+    var code = editor.getValue();
+    if (!code || !code.trim()) {
+        setOutput('错误: 代码不能为空\n\n请在编辑器中输入代码后再提交。', 'error');
+        showToast('代码不能为空', 'error');
+        editor.focus();
+        return;
+    }
+
+    setLoading('正在提交答案...');
+    setButtonLoading('submitCodeBtn', 'submitCodeIcon', 'submitCodeText', '提交中...');
+
+    fetch('/submit_exercise/' + exerciseId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: code })
+    })
+    .then(function(r) {
+        if (!r.ok) throw new Error('服务器响应错误: ' + r.status);
+        return r.json();
+    })
+    .then(function(data) {
+        setButtonReady('submitCodeBtn', 'submitCodeIcon', 'submitCodeText', '&#10003;');
+        if (data.success) {
+            var resultText = '';
+            if (data.status === 'passed') {
+                resultText = '【通过】得分: ' + data.score + '%\n';
+                showToast('恭喜！练习通过，得分: ' + data.score + '%', 'success');
+            } else if (data.status === 'partial') {
+                resultText = '【部分正确】得分: ' + data.score + '%\n';
+                showToast('部分正确，得分: ' + data.score + '%', 'warning');
+            } else {
+                resultText = '【未通过】得分: ' + data.score + '%\n';
+                showToast('未通过，请检查代码后重试', 'error');
+            }
+            if (data.output) resultText += '\n【输出】\n' + data.output;
+            if (data.error) resultText += '\n【错误】\n' + data.error;
+            setOutput(resultText, data.status === 'passed' ? 'success' : 'error');
+        } else {
+            setOutput('提交失败: ' + (data.error || '未知错误'), 'error');
+            showToast('提交失败', 'error');
+        }
+    })
+    .catch(function(err) {
+        setButtonReady('submitCodeBtn', 'submitCodeIcon', 'submitCodeText', '&#10003;');
+        setOutput('网络错误: ' + err.message + '\n请检查网络连接或刷新页面重试。', 'error');
+        showToast('网络错误: ' + err.message, 'error');
+    });
+}
+
+// ===================== 键盘快捷键 =====================
+document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        runCode();
+    }
+    if (e.key === 'Escape') {
+        closeSearchDialog();
+        if (document.body.classList.contains('focus-mode')) {
+            toggleFocusMode();
+        }
+    }
+});
+</script>
+{% endblock %}

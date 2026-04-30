@@ -1,0 +1,970 @@
+{% extends "base.html" %}
+
+{% block title %}管理后台 - Python编程实训平台{% endblock %}
+{% block meta_description %}管理员后台仪表盘，提供用户管理、数据统计、系统监控等功能{% endblock %}
+
+{% block extra_css %}
+<style>
+/* 管理员后台布局 */
+.admin-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: calc(100vh - 60px);
+}
+@media (max-width: 992px) {
+    .admin-layout { grid-template-columns: 1fr; }
+    .admin-sidebar { display: none; }
+}
+
+/* 侧边栏 */
+.admin-sidebar {
+    background: var(--bg-white);
+    border-right: 1px solid var(--border-light);
+    padding: var(--space-4);
+}
+.admin-sidebar-brand {
+    font-size: var(--text-lg);
+    font-weight: 800;
+    color: var(--text-primary);
+    padding: var(--space-4) var(--space-2);
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: var(--space-4);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+.admin-nav {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.admin-nav-item {
+    margin-bottom: var(--space-1);
+}
+.admin-nav-link {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-lg);
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+.admin-nav-link:hover,
+.admin-nav-link.active {
+    background: var(--primary-50);
+    color: var(--primary-600);
+}
+.admin-nav-link .icon {
+    font-size: var(--text-lg);
+    width: 24px;
+    text-align: center;
+}
+
+/* 主内容区 */
+.admin-main {
+    padding: var(--space-6);
+    background: var(--bg-gray-50);
+    overflow-y: auto;
+}
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-6);
+}
+.admin-header h1 {
+    font-size: var(--text-2xl);
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+/* 统计卡片 */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+}
+@media (max-width: 1200px) {
+    .stats-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 576px) {
+    .stats-grid { grid-template-columns: 1fr; }
+}
+.stat-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+.stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+}
+.stat-card.warning::before { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.stat-card.success::before { background: linear-gradient(135deg, #10b981, #059669); }
+.stat-card.danger::before { background: linear-gradient(135deg, #ef4444, #dc2626); }
+.stat-card.info::before { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+.stat-icon {
+    font-size: var(--text-3xl);
+    margin-bottom: var(--space-2);
+}
+.stat-value {
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1;
+    margin-bottom: var(--space-1);
+}
+.stat-label {
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+    font-weight: 500;
+}
+.stat-change {
+    font-size: var(--text-xs);
+    margin-top: var(--space-2);
+    font-weight: 600;
+}
+.stat-change.up { color: var(--success); }
+.stat-change.down { color: var(--danger); }
+
+/* 图表容器 */
+.chart-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+    margin-bottom: var(--space-4);
+}
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-4);
+}
+.chart-title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+.chart-body {
+    min-height: 250px;
+}
+
+/* 数据表格 */
+.data-table-card {
+    background: var(--bg-white);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    margin-bottom: var(--space-4);
+}
+.data-table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-4) var(--space-5);
+    border-bottom: 1px solid var(--border-light);
+}
+.data-table-title {
+    font-size: var(--text-lg);
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.data-table th,
+.data-table td {
+    padding: var(--space-3) var(--space-4);
+    text-align: left;
+    border-bottom: 1px solid var(--border-light);
+}
+.data-table th {
+    background: var(--bg-gray-50);
+    font-weight: 600;
+    font-size: var(--text-sm);
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.data-table tr:hover {
+    background: var(--bg-gray-50);
+}
+.data-table td {
+    font-size: var(--text-sm);
+    color: var(--text-primary);
+}
+
+/* 标签 */
+.badge-admin {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-full);
+    font-size: var(--text-xs);
+    font-weight: 600;
+}
+.badge-admin.success { background: #d1fae5; color: #065f46; }
+.badge-admin.warning { background: #fef3c7; color: #92400e; }
+.badge-admin.danger { background: #fee2e2; color: #991b1b; }
+.badge-admin.info { background: #dbeafe; color: #1e40af; }
+
+/* 筛选栏 */
+.filter-bar {
+    display: flex;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    margin-bottom: var(--space-4);
+}
+.filter-input {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+    min-width: 180px;
+}
+.filter-input:focus {
+    outline: none;
+    border-color: var(--primary-500);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+.filter-select {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+    background: var(--bg-white);
+}
+.btn-filter {
+    padding: var(--space-2) var(--space-4);
+    background: var(--primary-500);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-lg);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-filter:hover { background: var(--primary-600); }
+
+/* 分页 */
+.pagination {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-1);
+    padding: var(--space-4);
+}
+.page-btn {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--border-medium);
+    background: var(--bg-white);
+    border-radius: var(--radius);
+    font-size: var(--text-sm);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.page-btn:hover,
+.page-btn.active {
+    background: var(--primary-500);
+    color: #fff;
+    border-color: var(--primary-500);
+}
+
+/* Tab 内容 */
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* 进度条 */
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-gray-200);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+.progress-fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+    transition: width 0.3s ease;
+}
+.progress-fill.success { background: linear-gradient(135deg, #10b981, #059669); }
+.progress-fill.warning { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.progress-fill.danger { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+/* 活动日志 */
+.log-item {
+    display: flex;
+    gap: var(--space-3);
+    padding: var(--space-3) var(--space-4);
+    border-bottom: 1px solid var(--border-light);
+    font-size: var(--text-sm);
+}
+.log-item:last-child { border-bottom: none; }
+.log-time {
+    color: var(--text-muted);
+    font-size: var(--text-xs);
+    min-width: 140px;
+    font-family: monospace;
+}
+.log-action {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+.log-user {
+    color: var(--primary-600);
+    font-weight: 600;
+}
+.log-detail {
+    color: var(--text-secondary);
+}
+
+/* 两列布局 */
+.two-col-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4);
+}
+@media (max-width: 992px) {
+    .two-col-grid { grid-template-columns: 1fr; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-layout">
+    <!-- 侧边栏导航 -->
+    <aside class="admin-sidebar">
+        <div class="admin-sidebar-brand">
+            <span>&#128736;</span> 管理后台
+        </div>
+        <ul class="admin-nav">
+            <li class="admin-nav-item">
+                <a class="admin-nav-link active" onclick="showTab('dashboard')">
+                    <span class="icon">&#128202;</span> 仪表盘
+                </a>
+            </li>
+            <li class="admin-nav-item">
+                <a class="admin-nav-link" onclick="showTab('users')">
+                    <span class="icon">&#128100;</span> 用户管理
+                </a>
+            </li>
+            <li class="admin-nav-item">
+                <a class="admin-nav-link" onclick="showTab('courses')">
+                    <span class="icon">&#128218;</span> 课程管理
+                </a>
+            </li>
+            <li class="admin-nav-item">
+                <a class="admin-nav-link" onclick="showTab('submissions')">
+                    <span class="icon">&#128221;</span> 提交记录
+                </a>
+            </li>
+            <li class="admin-nav-item">
+                <a class="admin-nav-link" onclick="showTab('logs')">
+                    <span class="icon">&#128203;</span> 操作日志
+                </a>
+            </li>
+            <li class="admin-nav-item">
+                <a class="admin-nav-link" onclick="showTab('reports')">
+                    <span class="icon">&#128200;</span> 统计报表
+                </a>
+            </li>
+        </ul>
+    </aside>
+
+    <!-- 主内容区 -->
+    <main class="admin-main">
+        <!-- 仪表盘 -->
+        <div id="tab-dashboard" class="tab-content active">
+            <div class="admin-header">
+                <h1>仪表盘</h1>
+                <span class="badge-admin info">&#9200; 实时数据</span>
+            </div>
+
+            <!-- 关键指标卡片 -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">&#128100;</div>
+                    <div class="stat-value">{{ user_count }}</div>
+                    <div class="stat-label">用户总数</div>
+                    <div class="stat-change up">&#8593; {{ new_users_today }} 今日新增</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="stat-icon">&#128218;</div>
+                    <div class="stat-value">{{ course_count }}</div>
+                    <div class="stat-label">课程数量</div>
+                    <div class="stat-change up">&#8593; {{ total_lessons }} 课时</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="stat-icon">&#9997;</div>
+                    <div class="stat-value">{{ exercise_count }}</div>
+                    <div class="stat-label">练习数量</div>
+                    <div class="stat-change up">&#8593; {{ submission_count }} 次提交</div>
+                </div>
+                <div class="stat-card info">
+                    <div class="stat-icon">&#127942;</div>
+                    <div class="stat-value">{{ exam_count }}</div>
+                    <div class="stat-label">考试数量</div>
+                    <div class="stat-change up">&#8593; {{ exam_attempt_count }} 次考试</div>
+                </div>
+            </div>
+
+            <!-- 学习活跃度与提交趋势 -->
+            <div class="two-col-grid">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">&#128200; 近7日提交趋势</h3>
+                        <span class="badge-admin success">实时</span>
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="submissionChart" height="200"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">&#127919; 用户活跃度分布</h3>
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="activityChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 课程完成率 -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">&#128218; 课程学习进度</h3>
+                </div>
+                <div class="chart-body">
+                    {% for course in course_progress %}
+                    <div style="margin-bottom: var(--space-3);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: var(--space-1);">
+                            <span style="font-size: var(--text-sm); font-weight: 600;">{{ course.title }}</span>
+                            <span style="font-size: var(--text-sm); color: var(--text-muted);">{{ course.progress }}%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill {% if course.progress >= 70 %}success{% elif course.progress >= 40 %}warning{% else %}danger{% endif %}" style="width: {{ course.progress }}%"></div>
+                        </div>
+                        <div style="font-size: var(--text-xs); color: var(--text-muted); margin-top: var(--space-1);">
+                            {{ course.completed_users }} / {{ course.total_users }} 用户完成
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 用户管理 -->
+        <div id="tab-users" class="tab-content">
+            <div class="admin-header">
+                <h1>用户管理</h1>
+                <span class="badge-admin info">共 {{ user_count }} 位用户</span>
+            </div>
+
+            <!-- 筛选栏 -->
+            <div class="filter-bar">
+                <input type="text" class="filter-input" id="userSearch" placeholder="搜索用户名或邮箱..." onkeyup="filterUsers()">
+                <select class="filter-select" id="userRoleFilter" onchange="filterUsers()">
+                    <option value="">全部角色</option>
+                    <option value="student">学生</option>
+                    <option value="admin">管理员</option>
+                </select>
+                <select class="filter-select" id="userSort" onchange="filterUsers()">
+                    <option value="newest">最新注册</option>
+                    <option value="oldest">最早注册</option>
+                    <option value="active">最近活跃</option>
+                </select>
+                <button class="btn-filter" onclick="filterUsers()">筛选</button>
+            </div>
+
+            <!-- 用户列表 -->
+            <div class="data-table-card">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">用户列表</h3>
+                </div>
+                <table class="data-table" id="userTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用户名</th>
+                            <th>邮箱</th>
+                            <th>角色</th>
+                            <th>注册时间</th>
+                            <th>学习进度</th>
+                            <th>提交次数</th>
+                            <th>考试通过</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr data-role="{{ user.role }}" data-username="{{ user.username }}" data-email="{{ user.email }}">
+                            <td>#{{ user.id }}</td>
+                            <td><strong>{{ user.username }}</strong></td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                {% if user.role == 'admin' %}
+                                <span class="badge-admin danger">管理员</span>
+                                {% else %}
+                                <span class="badge-admin info">学生</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.created_at.strftime('%Y-%m-%d') }}</td>
+                            <td>
+                                <div class="progress-bar" style="width: 80px;">
+                                    <div class="progress-fill success" style="width: {{ user.lesson_progress }}%"></div>
+                                </div>
+                                <span style="font-size: var(--text-xs); color: var(--text-muted);">{{ user.lesson_progress }}%</span>
+                            </td>
+                            <td>{{ user.submission_count }}</td>
+                            <td>{{ user.passed_exams }} / {{ exam_count }}</td>
+                            <td>
+                                <button class="btn-filter" style="padding: 0.25rem 0.5rem; font-size: var(--text-xs);" onclick="viewUserDetail({{ user.id }})">详情</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="pagination" id="userPagination">
+                    <!-- 分页按钮由JS生成 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 课程管理 -->
+        <div id="tab-courses" class="tab-content">
+            <div class="admin-header">
+                <h1>课程管理</h1>
+                <a href="{{ url_for('new_course') }}" class="btn-filter">+ 创建新课程</a>
+            </div>
+
+            <div class="data-table-card">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">课程列表</h3>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>课程名称</th>
+                            <th>分类</th>
+                            <th>难度</th>
+                            <th>课时数</th>
+                            <th>学习人数</th>
+                            <th>完成率</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for course in courses_detail %}
+                        <tr>
+                            <td>#{{ course.id }}</td>
+                            <td><strong>{{ course.title }}</strong></td>
+                            <td>{{ course.category }}</td>
+                            <td><span class="badge-admin {% if course.level == 'beginner' %}success{% elif course.level == 'intermediate' %}warning{% else %}danger{% endif %}">{{ course.difficulty_label }}</span></td>
+                            <td>{{ course.lesson_count }}</td>
+                            <td>{{ course.learner_count }}</td>
+                            <td>
+                                <div class="progress-bar" style="width: 80px;">
+                                    <div class="progress-fill success" style="width: {{ course.completion_rate }}%"></div>
+                                </div>
+                                <span style="font-size: var(--text-xs);">{{ course.completion_rate }}%</span>
+                            </td>
+                            <td>
+                                {% if course.is_published %}
+                                <span class="badge-admin success">已发布</span>
+                                {% else %}
+                                <span class="badge-admin warning">草稿</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="btn-filter" style="padding: 0.25rem 0.5rem; font-size: var(--text-xs);">编辑</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 提交记录 -->
+        <div id="tab-submissions" class="tab-content">
+            <div class="admin-header">
+                <h1>提交记录</h1>
+                <span class="badge-admin info">共 {{ submission_count }} 条记录</span>
+            </div>
+
+            <div class="filter-bar">
+                <input type="text" class="filter-input" placeholder="搜索用户名...">
+                <select class="filter-select">
+                    <option value="">全部状态</option>
+                    <option value="passed">通过</option>
+                    <option value="failed">未通过</option>
+                    <option value="pending">待评分</option>
+                </select>
+                <select class="filter-select">
+                    <option value="">全部难度</option>
+                    <option value="easy">简单</option>
+                    <option value="medium">中等</option>
+                    <option value="hard">困难</option>
+                </select>
+            </div>
+
+            <div class="data-table-card">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>用户</th>
+                            <th>练习</th>
+                            <th>得分</th>
+                            <th>状态</th>
+                            <th>提交时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for sub in recent_submissions %}
+                        <tr>
+                            <td>#{{ sub.id }}</td>
+                            <td>{{ sub.username }}</td>
+                            <td>{{ sub.exercise_title }}</td>
+                            <td><strong>{{ sub.score }}%</strong></td>
+                            <td>
+                                {% if sub.status == 'passed' %}
+                                <span class="badge-admin success">通过</span>
+                                {% elif sub.status == 'failed' %}
+                                <span class="badge-admin danger">未通过</span>
+                                {% else %}
+                                <span class="badge-admin warning">待评分</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ sub.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                            <td><button class="btn-filter" style="padding: 0.25rem 0.5rem; font-size: var(--text-xs);">查看</button></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 操作日志 -->
+        <div id="tab-logs" class="tab-content">
+            <div class="admin-header">
+                <h1>操作日志</h1>
+                <button class="btn-filter" onclick="clearLogs()">清除日志</button>
+            </div>
+
+            <div class="filter-bar">
+                <input type="text" class="filter-input" id="logSearch" placeholder="搜索操作内容..." onkeyup="filterLogs()">
+                <select class="filter-select" id="logTypeFilter" onchange="filterLogs()">
+                    <option value="">全部类型</option>
+                    <option value="login">登录</option>
+                    <option value="submit">提交</option>
+                    <option value="course">课程</option>
+                    <option value="exam">考试</option>
+                </select>
+                <input type="date" class="filter-input" id="logDateFrom" onchange="filterLogs()">
+                <input type="date" class="filter-input" id="logDateTo" onchange="filterLogs()">
+            </div>
+
+            <div class="data-table-card">
+                <div class="data-table-header">
+                    <h3 class="data-table-title">系统操作日志</h3>
+                </div>
+                <div id="logContainer">
+                    {% for log in system_logs %}
+                    <div class="log-item" data-type="{{ log.type }}" data-content="{{ log.action }}">
+                        <span class="log-time">{{ log.timestamp }}</span>
+                        <span class="log-user">{{ log.username }}</span>
+                        <span class="log-action">{{ log.action }}</span>
+                        <span class="log-detail">{{ log.detail }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 统计报表 -->
+        <div id="tab-reports" class="tab-content">
+            <div class="admin-header">
+                <h1>统计报表</h1>
+                <select class="filter-select">
+                    <option>最近7天</option>
+                    <option>最近30天</option>
+                    <option>本月</option>
+                    <option>全部</option>
+                </select>
+            </div>
+
+            <div class="two-col-grid">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">&#128200; 每日活跃用户</h3>
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="dauChart" height="200"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <h3 class="chart-title">&#128200; 练习通过率分布</h3>
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="passRateChart" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-card">
+                <div class="chart-header">
+                    <h3 class="chart-title">&#127942; 考试成绩分布</h3>
+                </div>
+                <div class="chart-body">
+                    <canvas id="examScoreChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+// ===================== Tab 切换 =====================
+function showTab(tabId) {
+    document.querySelectorAll('.tab-content').forEach(function(el) {
+        el.classList.remove('active');
+    });
+    document.querySelectorAll('.admin-nav-link').forEach(function(el) {
+        el.classList.remove('active');
+    });
+    document.getElementById('tab-' + tabId).classList.add('active');
+    event.target.closest('.admin-nav-link').classList.add('active');
+
+    // 初始化图表
+    if (tabId === 'dashboard') {
+        initDashboardCharts();
+    } else if (tabId === 'reports') {
+        initReportCharts();
+    }
+}
+
+// ===================== 图表初始化 =====================
+var chartsInitialized = { dashboard: false, reports: false };
+
+function initDashboardCharts() {
+    if (chartsInitialized.dashboard) return;
+    chartsInitialized.dashboard = true;
+
+    // 提交趋势图
+    var ctx1 = document.getElementById('submissionChart');
+    if (ctx1) {
+        new Chart(ctx1, {
+            type: 'line',
+            data: {
+                labels: {{ chart_labels | tojson }},
+                datasets: [{
+                    label: '代码提交',
+                    data: {{ submission_trend | tojson }},
+                    borderColor: '#4f46e5',
+                    backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                    fill: true,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 } }
+                }
+            }
+        });
+    }
+
+    // 活跃度饼图
+    var ctx2 = document.getElementById('activityChart');
+    if (ctx2) {
+        new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: ['活跃', '一般', '不活跃'],
+                datasets: [{
+                    data: {{ activity_distribution | tojson }},
+                    backgroundColor: ['#10b981', '#f59e0b', '#ef4444']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    }
+}
+
+function initReportCharts() {
+    if (chartsInitialized.reports) return;
+    chartsInitialized.reports = true;
+
+    // DAU图
+    var ctx1 = document.getElementById('dauChart');
+    if (ctx1) {
+        new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: {{ chart_labels | tojson }},
+                datasets: [{
+                    label: '活跃用户',
+                    data: {{ dau_trend | tojson }},
+                    backgroundColor: '#4f46e5'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    // 通过率分布
+    var ctx2 = document.getElementById('passRateChart');
+    if (ctx2) {
+        new Chart(ctx2, {
+            type: 'pie',
+            data: {
+                labels: ['通过', '未通过', '待评分'],
+                datasets: [{
+                    data: {{ pass_rate_distribution | tojson }},
+                    backgroundColor: ['#10b981', '#ef4444', '#f59e0b']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+
+    // 考试成绩分布
+    var ctx3 = document.getElementById('examScoreChart');
+    if (ctx3) {
+        new Chart(ctx3, {
+            type: 'bar',
+            data: {
+                labels: ['0-59', '60-69', '70-79', '80-89', '90-100'],
+                datasets: [{
+                    label: '人数',
+                    data: {{ exam_score_distribution | tojson }},
+                    backgroundColor: '#8b5cf6'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+}
+
+// ===================== 用户筛选 =====================
+function filterUsers() {
+    var search = document.getElementById('userSearch').value.toLowerCase();
+    var role = document.getElementById('userRoleFilter').value;
+    var rows = document.querySelectorAll('#userTable tbody tr');
+
+    rows.forEach(function(row) {
+        var username = row.getAttribute('data-username').toLowerCase();
+        var email = row.getAttribute('data-email').toLowerCase();
+        var userRole = row.getAttribute('data-role');
+
+        var matchSearch = username.includes(search) || email.includes(search);
+        var matchRole = !role || userRole === role;
+
+        row.style.display = (matchSearch && matchRole) ? '' : 'none';
+    });
+}
+
+// ===================== 日志筛选 =====================
+function filterLogs() {
+    var search = document.getElementById('logSearch').value.toLowerCase();
+    var type = document.getElementById('logTypeFilter').value;
+    var items = document.querySelectorAll('#logContainer .log-item');
+
+    items.forEach(function(item) {
+        var content = item.getAttribute('data-content').toLowerCase();
+        var itemType = item.getAttribute('data-type');
+
+        var matchSearch = content.includes(search);
+        var matchType = !type || itemType === type;
+
+        item.style.display = (matchSearch && matchType) ? '' : 'none';
+    });
+}
+
+function clearLogs() {
+    if (confirm('确定要清除所有日志吗？此操作不可撤销。')) {
+        document.getElementById('logContainer').innerHTML = '<div style="padding: var(--space-4); text-align: center; color: var(--text-muted);">暂无日志记录</div>';
+        showToast('日志已清除', 'success');
+    }
+}
+
+// ===================== 用户详情 =====================
+function viewUserDetail(userId) {
+    showToast('用户详情功能开发中 (ID: ' + userId + ')', 'info');
+}
+
+// ===================== Toast 通知 =====================
+function showToast(message, type) {
+    type = type || 'info';
+    var container = document.getElementById('toastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'toastContainer';
+        container.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;';
+        document.body.appendChild(container);
+    }
+    var toast = document.createElement('div');
+    toast.style.cssText = 'padding:12px 20px;border-radius:8px;color:#fff;font-size:14px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,0.15);animation:toastSlideIn 0.3s ease;';
+    toast.style.background = type === 'success' ? '#059669' : (type === 'error' ? '#dc2626' : '#4f46e5');
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(function() {
+        if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, 3000);
+}
+
+// 页面加载时初始化仪表盘图表
+document.addEventListener('DOMContentLoaded', function() {
+    initDashboardCharts();
+});
+</script>
+{% endblock %}
