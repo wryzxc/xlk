@@ -29,7 +29,7 @@
 {% block content %}
 <div class="admin-container">
     <div class="admin-header">
-        <h1>&#128203; 学习行为日志</h1>
+        <h1 class="page-title">&#128203; 学习行为日志</h1>
         <a href="{{ url_for('export_learning_logs', log_type=request.args.get('log_type',''), user_id=request.args.get('user_id',''), date_from=request.args.get('date_from',''), date_to=request.args.get('date_to','')) }}" class="btn-export">&#128229; 导出CSV</a>
     </div>
 

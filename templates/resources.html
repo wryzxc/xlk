@@ -1,33 +1,82 @@
 {% extends "base.html" %}
+{% block title %}学习资源 - Python编程实训平台{% endblock %}
+{% block meta_description %}免费Python学习资源下载，包括课件PPT、源代码示例、学习文档等高质量教学材料{% endblock %}
+{% block og_title %}Python学习资源下载{% endblock %}
+{% block og_description %}免费Python学习资源下载，包括课件PPT、源代码示例、学习文档等高质量教学材料{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">学习资源</h2>
-    
-    <div class="mb-4">
-        <select class="form-select" style="width: 300px;" onchange="window.location.href='{{ url_for('resources') }}?category=' + this.value">
-            <option value="all" {% if current_category == 'all' %}selected{% endif %}>全部分类</option>
-            <option value="课件" {% if current_category == '课件' %}selected{% endif %}>课件</option>
-            <option value="代码" {% if current_category == '代码' %}selected{% endif %}>代码</option>
-            <option value="文档" {% if current_category == '文档' %}selected{% endif %}>文档</option>
-        </select>
-    </div>
-    
-    <div class="row">
-        {% for resource in resources %}
-        <div class="col-md-4">
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h5 class="card-title">
-                        <i class="bi bi-file-earmark"></i> {{ resource.title }}
-                    </h5>
-                    <p class="card-text">{{ resource.description[:100] }}</p>
-                    <p class="text-muted"><small>分类: {{ resource.category }}</small></p>
-                    <a href="#" class="btn btn-primary btn-sm">下载资源</a>
-                </div>
+<div class="container py-6">
+    <section class="page-intro animate-fadeIn">
+        <h2 class="page-title">学习资源</h2>
+        <p class="page-subtitle">精心整理的Python学习资料，包括课件、代码示例和参考文档，支持免费下载</p>
+    </section>
+
+    <div class="filter-row mb-5 animate-fadeIn" style="animation-delay:.05s">
+        <div class="filter-group">
+            <label for="category-filter" class="filter-label"><span aria-hidden="true">&#128451;</span> 资源分类</label>
+            <div class="filter-select-wrap">
+                <select id="category-filter" class="filter-select" aria-label="按分类筛选学习资源" onchange="window.location.href='{{ url_for('resources') }}?category='+this.value">
+                    <option value="all" {% if current_category == 'all' %}selected{% endif %}>全部分类</option>
+                    <option value="课件" {% if current_category == '课件' %}selected{% endif %}>课件</option>
+                    <option value="代码" {% if current_category == '代码' %}selected{% endif %}>代码</option>
+                    <option value="文档" {% if current_category == '文档' %}selected{% endif %}>文档</option>
+                </select>
             </div>
         </div>
-        {% endfor %}
     </div>
+
+    <div class="resource-count animate-fadeIn" style="animation-delay:.08s">
+        共 <strong>{{ resources|length }}</strong> 个资源
+    </div>
+
+    <section aria-label="学习资源列表" class="resources-grid">
+        {% for resource in resources %}
+        <article class="resource-card animate-fadeIn" style="animation-delay:{{ loop.index * 0.06 }}s">
+            <div class="resource-card-icon" aria-hidden="true">
+                {% if resource.category == '课件' %}&#128202;
+                {% elif resource.category == '代码' %}&#128187;
+                {% elif resource.category == '文档' %}&#128196;
+                {% else %}&#128193;{% endif %}
+            </div>
+            <div class="resource-card-body">
+                <h3 class="resource-card-title">{{ resource.title }}</h3>
+                <p class="resource-card-desc">{{ resource.description[:120] }}{% if resource.description|length > 120 %}...{% endif %}</p>
+                <span class="resource-card-cat">{{ resource.category }}</span>
+            </div>
+            <div class="resource-card-action">
+                <a href="#" class="btn btn-primary btn-sm" aria-label="下载 {{ resource.title }}">
+                    <span aria-hidden="true">&#128229;</span> 下载资源
+                </a>
+            </div>
+        </article>
+        {% endfor %}
+        {% if not resources %}
+        <div class="empty-state">
+            <span class="empty-icon" aria-hidden="true">&#128230;</span>
+            <p>暂无匹配的资源</p>
+            <a href="{{ url_for('resources') }}" class="btn btn-secondary btn-sm">查看全部资源</a>
+        </div>
+        {% endif %}
+    </section>
 </div>
+
+<style>
+.resources-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:var(--space-4)}
+.resource-card{display:flex;gap:var(--space-4);padding:var(--space-5);background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);transition:all .2s;align-items:flex-start}
+.resource-card:hover{border-color:var(--primary-light);box-shadow:var(--shadow-sm);transform:translateY(-2px)}
+.resource-card-icon{width:52px;height:52px;border-radius:var(--radius-lg);background:linear-gradient(135deg,var(--primary),#06b6d4);display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:#fff;flex-shrink:0}
+.resource-card-body{flex:1;min-width:0}
+.resource-card-title{font-size:var(--text-base);font-weight:700;color:var(--gray-800);margin:0 0 var(--space-2) 0;line-height:var(--leading-tight)}
+.resource-card-desc{font-size:var(--text-sm);color:var(--gray-500);margin:0 0 var(--space-3) 0;line-height:var(--leading-relaxed)}
+.resource-card-cat{display:inline-block;font-size:var(--text-xs);color:var(--primary);background:rgba(79,70,229,.08);padding:.125rem .5rem;border-radius:var(--radius-full);font-weight:500}
+.resource-card-action{flex-shrink:0}
+.resource-count{font-size:var(--text-sm);color:var(--gray-500);margin-bottom:var(--space-4)}
+
+@media(max-width:639.98px){
+    .resources-grid{grid-template-columns:1fr}
+    .resource-card{flex-direction:column}
+    .resource-card-action{width:100%}
+    .resource-card-action .btn{width:100%}
+}
+</style>
 {% endblock %}

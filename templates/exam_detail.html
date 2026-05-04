@@ -283,23 +283,27 @@
                     <div class="question-header">
                         <span class="question-number">
                             第{{ loop.index }}题
-                            {% if question.question_type == 'multiple_choice' %}
-                            <span class="question-type-badge single">单选</span>
-                            {% elif question.question_type == 'multiple_answer' %}
-                            <span class="question-type-badge multiple">多选</span>
-                            {% elif question.question_type == 'fill_blank' %}
-                            <span class="question-type-badge fill">填空</span>
-                            {% elif question.question_type == 'code_reading' %}
-                            <span class="question-type-badge code">代码阅读</span>
-                            {% endif %}
+                            {% if question.question_type == 'single_choice' %}
+                    <span class="question-type-badge single">单选</span>
+                    {% elif question.question_type == 'true_false' %}
+                    <span class="question-type-badge single">判断</span>
+                    {% elif question.question_type == 'fill_blank' %}
+                    <span class="question-type-badge fill">填空</span>
+                    {% elif question.question_type == 'code_reading' %}
+                    <span class="question-type-badge code">代码阅读</span>
+                    {% elif question.question_type == 'short_answer' %}
+                    <span class="question-type-badge fill">简答</span>
+                    {% elif question.question_type == 'programming' %}
+                    <span class="question-type-badge code">编程</span>
+                    {% endif %}
                         </span>
                         <span class="question-points">{{ question.points }}分</span>
                     </div>
 
                     <div class="question-text">{{ question.question_text }}</div>
 
-                    <!-- 单选题 -->
-                    {% if question.question_type == 'multiple_choice' %}
+                    <!-- 单选题 / 判断题 / 代码阅读题 -->
+                    {% if question.question_type in ('single_choice', 'true_false', 'code_reading') %}
                         <div class="option-list">
                             {% set options = question.options.split('|') if '|' in question.options else question.options.split('  ') %}
                             {% for option in options %}
@@ -318,30 +322,6 @@
                             {% endif %}
                             {% endfor %}
                         </div>
-
-                    <!-- 多选题 -->
-                    {% elif question.question_type == 'multiple_answer' %}
-                        <div class="option-list">
-                            {% set options = question.options.split('|') if '|' in question.options else question.options.split('  ') %}
-                            {% for option in options %}
-                            {% set opt_text = option.strip() %}
-                            {% if opt_text %}
-                            <div class="option-item" onclick="selectOption(this)">
-                                <input class="form-check-input" type="checkbox"
-                                       name="question_{{ question.id }}"
-                                       value="{{ opt_text[0] if opt_text else '' }}"
-                                       id="q{{ question.id }}_{{ loop.index }}"
-                                       onchange="updateProgress()">
-                                <label for="q{{ question.id }}_{{ loop.index }}">
-                                    {{ opt_text }}
-                                </label>
-                            </div>
-                            {% endif %}
-                            {% endfor %}
-                        </div>
-                        <p style="font-size:0.75rem;color:var(--text-muted);margin-top:var(--space-2)">
-                            &#9432; 此题为多选题，请选择所有正确答案
-                        </p>
 
                     <!-- 填空题 -->
                     {% elif question.question_type == 'fill_blank' %}
@@ -355,27 +335,18 @@
                                    oninput="updateProgress()">
                         </div>
 
-                    <!-- 代码阅读题 -->
-                    {% elif question.question_type == 'code_reading' %}
-                        <div class="code-reading-block">{{ question.question_text.split('阅读以下代码，输出结果是什么？')[1].split('"options":')[0].replace('\\n', '\n') if '阅读以下代码' in question.question_text else question.question_text }}</div>
-                        <div class="option-list">
-                            {% set options = question.options.split('|') if '|' in question.options else question.options.split('  ') %}
-                            {% for option in options %}
-                            {% set opt_text = option.strip() %}
-                            {% if opt_text %}
-                            <div class="option-item" onclick="selectOption(this)">
-                                <input class="form-check-input" type="radio"
-                                       name="question_{{ question.id }}"
-                                       value="{{ opt_text[0] if opt_text else '' }}"
-                                       id="q{{ question.id }}_{{ loop.index }}"
-                                       onchange="updateProgress()">
-                                <label for="q{{ question.id }}_{{ loop.index }}">
-                                    {{ opt_text }}
-                                </label>
-                            </div>
-                            {% endif %}
-                            {% endfor %}
+                    <!-- 简答题 / 编程题 -->
+                    {% elif question.question_type in ('short_answer', 'programming') %}
+                        <div class="fillblank-area">
+                            <textarea class="fillblank-input"
+                                      name="question_{{ question.id }}"
+                                      id="q{{ question.id }}"
+                                      rows="6"
+                                      placeholder="请输入你的答案..."
+                                      oninput="updateProgress()"
+                                      style="resize:vertical;min-height:120px"></textarea>
                         </div>
+
                     {% endif %}
                 </div>
                 {% endfor %}
@@ -442,7 +413,7 @@ function updateProgress() {
     var answered = 0;
 
     {% for question in questions %}
-    {% if question.question_type in ['multiple_choice', 'multiple_answer'] %}
+    {% if question.question_type in ('single_choice', 'true_false', 'code_reading') %}
     if (document.querySelectorAll('input[name="question_{{ question.id }}"]:checked').length > 0) {
         answered++;
         document.getElementById('nav-{{ loop.index }}').style.background = 'var(--success)';
@@ -453,7 +424,7 @@ function updateProgress() {
         document.getElementById('nav-{{ loop.index }}').style.color = '';
         document.getElementById('nav-{{ loop.index }}').style.borderColor = '';
     }
-    {% elif question.question_type == 'fill_blank' %}
+    {% elif question.question_type in ('fill_blank', 'short_answer', 'programming') %}
     if (document.getElementById('q{{ question.id }}').value.trim() !== '') {
         answered++;
         document.getElementById('nav-{{ loop.index }}').style.background = 'var(--success)';

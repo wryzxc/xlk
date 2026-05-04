@@ -1,0 +1,1491 @@
+{% extends "base.html" %}
+
+{% block title %}{{ exam.title }} - 在线考试{% endblock %}
+{% block meta_description %}{{ exam.title }} - {{ exam.description[:100] }}{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+    --exam-sidebar-w: 280px;
+    --exam-topbar-h: 56px;
+    --exam-bottombar-h: 64px;
+}
+
+.exam-body {
+    background: #f0f2f5;
+    min-height: calc(100vh - 57px);
+}
+
+.exam-wrapper {
+    display: flex;
+    height: calc(100vh - 57px);
+    overflow: hidden;
+}
+
+/* ===== Top Timer Bar ===== */
+.exam-topbar {
+    position: fixed;
+    top: 57px;
+    left: 0;
+    right: 0;
+    z-index: 999;
+    background: #1a1a2e;
+    color: #fff;
+    height: var(--exam-topbar-h);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.15);
+}
+.exam-topbar .exam-title-sm {
+    font-size: .9rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 360px;
+}
+.exam-timer-wrap {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+.exam-timer {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: .04em;
+    color: #4ade80;
+    transition: color .3s;
+}
+.exam-timer.warning {
+    color: #fbbf24;
+    animation: timerPulse 1s ease-in-out infinite;
+}
+.exam-timer.danger {
+    color: #ef4444;
+    animation: timerPulse .5s ease-in-out infinite;
+}
+@keyframes timerPulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: .55; }
+}
+.auto-save-status {
+    font-size: .8rem;
+    color: #94a3b8;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.auto-save-status .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4ade80;
+    transition: background .3s;
+}
+.auto-save-status .dot.saving {
+    background: #fbbf24;
+    animation: dotPulse .6s ease-in-out infinite;
+}
+.auto-save-status .dot.error {
+    background: #ef4444;
+}
+@keyframes dotPulse {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.8); }
+}
+
+/* ===== Sidebar Navigation ===== */
+.exam-sidebar {
+    width: var(--exam-sidebar-w);
+    background: #fff;
+    border-right: 1px solid #e2e8f0;
+    overflow-y: auto;
+    margin-top: var(--exam-topbar-h);
+    height: calc(100% - var(--exam-topbar-h));
+    flex-shrink: 0;
+}
+.sidebar-header {
+    padding: 14px 16px;
+    border-bottom: 1px solid #e2e8f0;
+    font-weight: 700;
+    font-size: .9rem;
+    color: #374151;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 1;
+}
+.sidebar-progress {
+    font-size: .78rem;
+    color: #6b7280;
+}
+.type-group {
+    padding: 0;
+}
+.type-group-header {
+    padding: 10px 16px;
+    font-size: .8rem;
+    font-weight: 700;
+    color: #6366f1;
+    background: #f8fafc;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+.type-group-header .type-icon {
+    font-size: .9rem;
+}
+.question-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 10px 12px;
+}
+.q-nav-btn {
+    width: 36px;
+    height: 36px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fff;
+    color: #64748b;
+    font-size: .78rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.q-nav-btn:hover {
+    border-color: #818cf8;
+    color: #4f46e5;
+    background: #eef2ff;
+}
+.q-nav-btn.answered {
+    background: #dcfce7;
+    border-color: #86efac;
+    color: #166534;
+}
+.q-nav-btn.current {
+    border-color: #4f46e5;
+    background: #eef2ff;
+    color: #4338ca;
+    box-shadow: 0 0 0 2px rgba(79,70,229,.25);
+    transform: scale(1.05);
+}
+.q-nav-btn.current.answered {
+    background: #dcfce7;
+    border-color: #4f46e5;
+}
+
+/* ===== Main Content Area ===== */
+.exam-main {
+    flex: 1;
+    overflow-y: auto;
+    margin-top: var(--exam-topbar-h);
+    height: calc(100% - var(--exam-topbar-h));
+    padding-bottom: var(--exam-bottombar-h);
+}
+.q-section {
+    padding: 24px 32px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+.q-section-header {
+    margin-bottom: 24px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #e2e8f0;
+}
+.q-section-header h3 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #1e293b;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.q-section-header .q-type-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: .75rem;
+    font-weight: 600;
+    background: #eef2ff;
+    color: #4f46e5;
+}
+.q-instruction {
+    margin-top: 6px;
+    font-size: .82rem;
+    color: #64748b;
+}
+
+/* Question Card */
+.q-card {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin-bottom: 16px;
+    transition: border-color .3s, box-shadow .3s;
+}
+.q-card:hover {
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+}
+.q-card.highlight {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+}
+.q-card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+.q-num {
+    font-weight: 700;
+    color: #4f46e5;
+    font-size: .95rem;
+}
+.q-pts {
+    background: #eef2ff;
+    color: #4f46e5;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: .78rem;
+    font-weight: 600;
+}
+.q-text {
+    font-size: .92rem;
+    color: #1e293b;
+    line-height: 1.65;
+    margin-bottom: 16px;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+.q-code-block {
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 14px 16px;
+    border-radius: 8px;
+    font-family: 'Consolas','Courier New',monospace;
+    font-size: .84rem;
+    line-height: 1.55;
+    margin: 10px 0;
+    overflow-x: auto;
+    white-space: pre;
+}
+
+/* Options - Radio buttons */
+.q-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.opt-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 10px 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all .15s;
+}
+.opt-row:hover {
+    border-color: #a5b4fc;
+    background: #f8fafc;
+}
+.opt-row input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    accent-color: #4f46e5;
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+.opt-row input[type="radio"]:checked + .opt-label {
+    color: #4f46e5;
+    font-weight: 600;
+}
+.opt-row:has(input:checked) {
+    border-color: #4f46e5;
+    background: #eef2ff;
+}
+.opt-label {
+    font-size: .9rem;
+    color: #334155;
+    flex: 1;
+    line-height: 1.5;
+}
+
+/* Fill in blank */
+.q-input-wrap {
+    position: relative;
+}
+.q-input {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: .9rem;
+    color: #1e293b;
+    transition: all .2s;
+    background: #fff;
+}
+.q-input:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+}
+.q-input.filled {
+    border-color: #86efac;
+    background: #f8fdf9;
+}
+
+/* Textarea */
+.q-textarea {
+    width: 100%;
+    min-height: 120px;
+    padding: 12px 14px;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: .9rem;
+    color: #1e293b;
+    font-family: 'Consolas','Courier New',monospace;
+    resize: vertical;
+    transition: all .2s;
+    line-height: 1.55;
+}
+.q-textarea:focus {
+    outline: none;
+    border-color: #4f46e5;
+    box-shadow: 0 0 0 3px rgba(99,102,241,.12);
+}
+.q-textarea.filled {
+    border-color: #86efac;
+}
+.q-textarea.code-editor {
+    min-height: 200px;
+    background: #1e293b;
+    color: #e2e8f0;
+    font-family: 'Consolas','Courier New',monospace;
+    font-size: .86rem;
+    line-height: 1.6;
+    border-color: #334155;
+    tab-size: 4;
+}
+.q-textarea.code-editor:focus {
+    border-color: #818cf8;
+    box-shadow: 0 0 0 3px rgba(129,140,248,.2);
+}
+.q-textarea.code-editor.filled {
+    border-color: #4ade80;
+}
+
+/* True/False - Redesigned as standalone buttons */
+.tf-group {
+    display: flex;
+    gap: 12px;
+}
+.tf-btn {
+    flex: 1;
+    padding: 12px 8px;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: .95rem;
+    transition: all .15s;
+    background: #fff;
+    color: #64748b;
+    user-select: none;
+}
+.tf-btn:hover {
+    border-color: #a5b4fc;
+}
+.tf-btn.selected {
+    border-color: #4ade80;
+    background: #dcfce7;
+    color: #166534;
+    box-shadow: 0 0 0 2px rgba(74,222,128,.25);
+}
+.tf-btn.false-selected {
+    border-color: #f87171;
+    background: #fee2e2;
+    color: #991b1b;
+    box-shadow: 0 0 0 2px rgba(248,113,113,.25);
+}
+
+/* ===== Bottom Submit Bar ===== */
+.exam-bottombar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 999;
+    height: var(--exam-bottombar-h);
+    background: #fff;
+    border-top: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px 0 calc(var(--exam-sidebar-w) + 24px);
+    box-shadow: 0 -2px 8px rgba(0,0,0,.05);
+}
+.progress-summary {
+    font-size: .85rem;
+    color: #64748b;
+}
+.progress-summary strong {
+    color: #4f46e5;
+}
+.btn-submit-exam {
+    padding: 10px 28px;
+    background: #4f46e5;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: .95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s;
+    box-shadow: 0 4px 12px rgba(79,70,229,.3);
+}
+.btn-submit-exam:hover {
+    background: #4338ca;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(79,70,229,.4);
+}
+.btn-submit-exam:active {
+    transform: translateY(0);
+}
+.btn-submit-exam:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
+/* ===== Modals ===== */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(15,23,42,.6);
+    align-items: center;
+    justify-content: center;
+}
+.modal-overlay.active {
+    display: flex;
+}
+.modal-box {
+    background: #fff;
+    border-radius: 14px;
+    padding: 32px;
+    max-width: 440px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 20px 40px rgba(0,0,0,.25);
+}
+.modal-box.warning-modal {
+    border-top: 4px solid #f59e0b;
+}
+.modal-box.confirm-modal {
+    border-top: 4px solid #6366f1;
+}
+.modal-icon {
+    font-size: 2.8rem;
+    margin-bottom: 12px;
+}
+.modal-box h4 {
+    font-size: 1.15rem;
+    color: #1e293b;
+    margin-bottom: 8px;
+}
+.modal-box p {
+    font-size: .9rem;
+    color: #64748b;
+    margin-bottom: 20px;
+    line-height: 1.55;
+}
+.modal-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+.modal-btn {
+    padding: 10px 24px;
+    border-radius: 8px;
+    border: none;
+    font-size: .88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+}
+.modal-btn:disabled {
+    opacity: .6;
+    cursor: not-allowed;
+}
+.modal-btn-primary {
+    background: #4f46e5;
+    color: #fff;
+}
+.modal-btn-primary:hover {
+    background: #4338ca;
+}
+.modal-btn-secondary {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1.5px solid #e2e8f0;
+}
+.modal-btn-secondary:hover {
+    background: #e2e8f0;
+}
+.modal-btn-warning {
+    background: #f59e0b;
+    color: #fff;
+}
+.modal-btn-warning:hover {
+    background: #d97706;
+}
+
+/* Toast notification */
+.exam-toast {
+    position: fixed;
+    top: calc(57px + var(--exam-topbar-h) + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3000;
+    background: #1e293b;
+    color: #fff;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-size: .85rem;
+    font-weight: 500;
+    box-shadow: 0 8px 24px rgba(0,0,0,.2);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .3s;
+}
+.exam-toast.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Retry toast */
+.exam-toast.retry {
+    background: #eab308;
+    color: #1e293b;
+}
+.exam-toast.retry .retry-link {
+    margin-left: 10px;
+    color: #1e293b;
+    text-decoration: underline;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 900px) {
+    .exam-sidebar {
+        position: fixed;
+        left: -100%;
+        top: calc(57px + var(--exam-topbar-h));
+        bottom: var(--exam-bottombar-h);
+        width: 280px;
+        z-index: 1500;
+        transition: left .25s ease;
+        box-shadow: 4px 0 16px rgba(0,0,0,.1);
+    }
+    .exam-sidebar.open {
+        left: 0;
+    }
+    .exam-main {
+        width: 100%;
+    }
+    .exam-bottombar {
+        padding-left: 24px;
+    }
+    .q-section {
+        padding: 16px;
+    }
+    .exam-topbar .exam-title-sm {
+        max-width: 180px;
+        font-size: .8rem;
+    }
+    .exam-timer {
+        font-size: 1.25rem;
+    }
+    .mobile-nav-toggle {
+        display: flex !important;
+    }
+}
+.mobile-nav-toggle {
+    display: none;
+    position: fixed;
+    bottom: 80px;
+    right: 16px;
+    z-index: 1600;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #4f46e5;
+    color: #fff;
+    border: none;
+    font-size: 1.3rem;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(79,70,229,.4);
+    align-items: center;
+    justify-content: center;
+}
+.mobile-nav-toggle:hover {
+    background: #4338ca;
+}
+
+@media (max-width: 640px) {
+    .exam-timer {
+        font-size: 1rem;
+    }
+    .q-card {
+        padding: 14px 12px;
+    }
+    .q-card-top {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+    .opt-row {
+        padding: 8px 10px;
+    }
+    .tf-group {
+        flex-direction: column;
+        gap: 8px;
+    }
+    .q-section-header h3 {
+        font-size: 1rem;
+    }
+    .exam-topbar .exam-title-sm {
+        display: none;
+    }
+}
+
+@media print {
+    .exam-sidebar, .exam-topbar, .exam-bottombar, .mobile-nav-toggle { display: none !important; }
+    .exam-wrapper { display: block; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="exam-body">
+    <div class="exam-topbar" role="banner">
+        <span class="exam-title-sm">{{ exam.title }}</span>
+        <div class="exam-timer-wrap">
+            <span class="auto-save-status">
+                <span class="dot" id="autoSaveDot"></span>
+                <span id="autoSaveLabel">就绪</span>
+            </span>
+            <span class="exam-timer" id="examTimer" aria-live="polite" aria-label="剩余考试时间">--:--:--</span>
+        </div>
+    </div>
+
+    <div class="exam-wrapper">
+        <nav class="exam-sidebar" id="examSidebar" aria-label="题目导航">
+            <div class="sidebar-header">
+                <span>题目导航</span>
+                <span class="sidebar-progress" id="sidebarProgress">已答: 0/57</span>
+            </div>
+            {% for qtype_name, qlist in question_types.items() %}
+            <div class="type-group">
+                <div class="type-group-header" onclick="scrollToSection('{{ qtype_name }}')">
+                    <span class="type-icon">
+                        {% if qtype_name == 'single_choice' %}①{% elif qtype_name == 'true_false' %}②
+                        {% elif qtype_name == 'fill_blank' %}③{% elif qtype_name == 'code_reading' %}④
+                        {% elif qtype_name == 'short_answer' %}⑤{% elif qtype_name == 'programming' %}⑥{% endif %}
+                    </span>
+                    {% set type_labels = {'single_choice':'单选题','true_false':'判断题','fill_blank':'填空题','code_reading':'程序阅读','short_answer':'简答题','programming':'编程题'} %}
+                    {{ type_labels.get(qtype_name, qtype_name) }}
+                    <span style="font-weight:400;color:#94a3b8;font-size:.75rem;margin-left:auto">{{ qlist|length }}题</span>
+                </div>
+                <div class="question-grid">
+                    {% for q in qlist %}
+                    <button class="q-nav-btn" id="qnav{{ q.id }}" data-qid="{{ q.id }}"
+                            title="第{{ q.order }}题 ({{ q.points }}分)" aria-label="跳转到第{{ q.order }}题">{{ q.order }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </nav>
+
+        <button class="mobile-nav-toggle" id="mobileNavToggle" aria-label="打开题目导航" title="题目导航">☰</button>
+
+        <main class="exam-main" id="examMain">
+            {% for qtype_name, qlist in question_types.items() %}
+            {% set type_labels = {'single_choice':'单选题','true_false':'判断题','fill_blank':'填空题','code_reading':'程序阅读题','short_answer':'简答题','programming':'编程题'} %}
+            {% set type_instructions = {
+                'single_choice': '请从四个选项中选择一个最佳答案，点击选项即可选中。每题1.5分，共30题。',
+                'true_false': '请判断以下陈述是否正确，点击按钮进行选择，再次点击可切换。每题1分，共10题。',
+                'fill_blank': '请在输入框中填写正确答案。注意区分大小写，特殊符号。每题1.5分，共8题。',
+                'code_reading': '请阅读给出的Python代码，根据代码逻辑选择正确的输出结果。每题3分，共4题。',
+                'short_answer': '请在文本框中简要回答，每题最低10个字符。评审以答题完整性为准。每题3分，共3题。',
+                'programming': '请在代码编辑器中编写Python代码实现题目要求。编程题每题6分，共2题。<br><em>提示：使用Tab键缩进，注意代码规范。</em>'
+            } %}
+            <section class="q-section" id="section-{{ qtype_name }}" aria-labelledby="header-{{ qtype_name }}">
+                <div class="q-section-header">
+                    <h3 id="header-{{ qtype_name }}">
+                        {{ type_labels.get(qtype_name, qtype_name) }}
+                        <span class="q-type-badge">{{ qlist|length }}题 · 共{{ (qlist|sum(attribute='points'))|round(1) }}分</span>
+                    </h3>
+                    <p class="q-instruction">{{ type_instructions.get(qtype_name, '')|safe }}</p>
+                </div>
+
+                {% for q in qlist %}
+                <div class="q-card" id="qcard{{ q.id }}" data-qid="{{ q.id }}" data-qtype="{{ qtype_name }}">
+                    <div class="q-card-top">
+                        <span class="q-num">第 {{ q.order }} 题</span>
+                        <span class="q-pts">{{ q.points }} 分</span>
+                    </div>
+                    <div class="q-text">{{ q.text }}</div>
+
+                    {% if qtype_name in ('single_choice', 'code_reading') %}
+                    <div class="q-options">
+                        {% set opts_raw = q.options or '' %}
+                        {% if '\n' in opts_raw %}
+                            {% set opts = opts_raw.split('\n') %}
+                        {% else %}
+                            {% set opts = opts_raw.split('  ') %}
+                        {% endif %}
+                        {% for opt in opts %}
+                        {% set opt_stripped = opt.strip() %}
+                        {% if opt_stripped %}
+                        <label class="opt-row">
+                            <input type="radio" name="q{{ q.id }}" value="{{ opt_stripped[:1] }}" data-qid="{{ q.id }}">
+                            <span class="opt-label">{{ opt_stripped }}</span>
+                        </label>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if qtype_name == 'true_false' %}
+                    <div class="tf-group">
+                        <div class="tf-btn" id="tfTrue{{ q.id }}" data-qid="{{ q.id }}" data-value="true" role="button" tabindex="0" aria-pressed="false">✓ 正确</div>
+                        <div class="tf-btn" id="tfFalse{{ q.id }}" data-qid="{{ q.id }}" data-value="false" role="button" tabindex="0" aria-pressed="false">✗ 错误</div>
+                    </div>
+                    {% endif %}
+
+                    {% if qtype_name == 'fill_blank' %}
+                    <div class="q-input-wrap">
+                        <input type="text" class="q-input" id="qinput{{ q.id }}" data-qid="{{ q.id }}"
+                               placeholder="请输入你的答案..." aria-label="填写答案">
+                    </div>
+                    {% endif %}
+
+                    {% if qtype_name == 'short_answer' %}
+                    <textarea class="q-textarea" id="qinput{{ q.id }}" data-qid="{{ q.id }}"
+                              placeholder="请输入你的答案（至少10个字符）..." rows="5" aria-label="简答答案"></textarea>
+                    {% endif %}
+
+                    {% if qtype_name == 'programming' %}
+                    <textarea class="q-textarea code-editor" id="qinput{{ q.id }}" data-qid="{{ q.id }}"
+                              placeholder="# 在此编写Python代码...&#10;def solution():&#10;    # 你的代码&#10;    pass"
+                              rows="12" spellcheck="false" aria-label="编程题代码编辑器"></textarea>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </section>
+            {% endfor %}
+            <div style="height: 40px;"></div>
+        </main>
+    </div>
+
+    <div class="exam-bottombar" role="status">
+        <div class="progress-summary">
+            已答: <strong id="bottomAnswered">0</strong> / <strong>57</strong> 题 ·
+            进度: <strong id="bottomProgress">0%</strong>
+        </div>
+        <button class="btn-submit-exam" id="btnSubmitExam" aria-label="提交考试">📝 提交试卷</button>
+    </div>
+
+    <div class="modal-overlay" id="warningModal">
+        <div class="modal-box warning-modal">
+            <div class="modal-icon">⏰</div>
+            <h4>考试时间剩余10分钟！</h4>
+            <p>距离考试结束还剩<b>10分钟</b>，请抓紧时间完成未答题目。<br>系统将在时间结束后自动提交。</p>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-warning" id="btnCloseWarning">知道了，继续答题</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="confirmModal">
+        <div class="modal-box confirm-modal">
+            <div class="modal-icon">📋</div>
+            <h4>确认提交试卷？</h4>
+            <p id="confirmMsg">您已完成 <strong id="confirmAnswered">0</strong> / <strong>57</strong> 题，<br><span id="unansweredWarn"></span><br>提交后将无法修改答案。</p>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-secondary" id="btnCloseConfirm">继续检查</button>
+                <button class="modal-btn modal-btn-primary" id="btnConfirmSubmit">确认提交</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="timeoutModal">
+        <div class="modal-box" style="border-top:4px solid #ef4444;">
+            <div class="modal-icon">⌛</div>
+            <h4>考试时间已到</h4>
+            <p>系统正在自动提交您的试卷，请稍候...</p>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="submitErrorModal">
+        <div class="modal-box" style="border-top:4px solid #ef4444;">
+            <div class="modal-icon">⚠️</div>
+            <h4>提交失败</h4>
+            <p id="submitErrorMsg">提交过程中出现错误，请检查网络连接后重试。</p>
+            <div class="modal-actions">
+                <button class="modal-btn modal-btn-primary" id="btnRetrySubmit">重试提交</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="exam-toast" id="examToast"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+
+    var EXAM_ID = {{ exam.id }};
+    var TOTAL_DURATION_SECONDS = {{ exam.duration_minutes * 60 }};
+    {% if attempt.remaining_seconds and attempt.remaining_seconds > 0 %}
+    var remainingSeconds = {{ attempt.remaining_seconds }};
+    {% else %}
+    var remainingSeconds = TOTAL_DURATION_SECONDS;
+    {% endif %}
+    var TOTAL_QUESTIONS = 57;
+
+    var allQIds = [];
+    var qTypes = {};
+    {% for q in questions %}
+    allQIds.push({{ q.id }});
+    qTypes[{{ q.id }}] = '{{ q.question_type }}';
+    {% endfor %}
+
+    var answers = {};
+
+    function parseOptions(rawOpts) {
+        if (!rawOpts) return [];
+        if (rawOpts.indexOf('\n') !== -1) {
+            return rawOpts.split('\n').filter(function(s) { return s.trim(); });
+        }
+        var parts = rawOpts.split('  ').filter(function(s) { return s.trim(); });
+        if (parts.length >= 2) return parts;
+        var matches = rawOpts.match(/[A-D]\.\s[^A-D]+(?=\s{2,}[A-D]\.|$)/g);
+        if (matches && matches.length >= 2) return matches;
+        return [rawOpts];
+    }
+
+    (function restoreState() {
+        try {
+            var raw = '{{ attempt.answers|tojson|safe if attempt.answers else "{}" }}';
+            var stored = JSON.parse(raw);
+            if (stored.answers) {
+                answers = stored.answers;
+            } else if (typeof stored === 'object') {
+                for (var k in stored) {
+                    if (!isNaN(parseInt(k))) { answers[k] = stored[k]; }
+                }
+            }
+            for (var qid in answers) {
+                restoreAnswerUI(parseInt(qid), answers[qid]);
+            }
+        } catch(e) {
+            answers = {};
+        }
+    })();
+
+    // ===== Timer =====
+    var timerInterval = null;
+    var warningShown = false;
+    var submitted = false;
+    var lastSaveTime = 0;
+    var manualSaveLocked = false;
+
+    function formatTime(secs) {
+        if (secs < 0) secs = 0;
+        var h = Math.floor(secs / 3600);
+        var m = Math.floor((secs % 3600) / 60);
+        var s = Math.floor(secs % 60);
+        return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    }
+
+    function updateTimerDisplay() {
+        var el = document.getElementById('examTimer');
+        if (!el) return;
+        el.textContent = formatTime(remainingSeconds);
+        el.classList.remove('warning', 'danger');
+        if (remainingSeconds <= 600 && remainingSeconds > 180) {
+            el.classList.add('warning');
+            if (!warningShown) { showWarningModal(); warningShown = true; }
+        } else if (remainingSeconds <= 180) {
+            el.classList.add('danger');
+            el.style.color = '#ef4444';
+        }
+    }
+
+    function onTimerTick() {
+        if (submitted) return;
+        remainingSeconds--;
+        if (remainingSeconds % 30 === 0) { saveRemainingTime(); }
+        updateTimerDisplay();
+        updateAutoSaveLabel();
+        if (remainingSeconds <= 0) { onTimeout(); }
+    }
+
+    function updateAutoSaveLabel() {
+        if (lastSaveTime === 0) return;
+        var diff = Math.floor((Date.now() - lastSaveTime) / 1000);
+        var label = document.getElementById('autoSaveLabel');
+        if (!label) return;
+        if (diff < 5) label.textContent = '刚刚保存';
+        else if (diff < 60) label.textContent = diff + '秒前保存';
+        else label.textContent = Math.floor(diff / 60) + '分钟前保存';
+    }
+
+    function showWarningModal() {
+        document.getElementById('warningModal').classList.add('active');
+    }
+
+    function closeWarning() {
+        document.getElementById('warningModal').classList.remove('active');
+    }
+
+    function onTimeout() {
+        if (submitted) return;
+        submitted = true;
+        clearInterval(timerInterval);
+        document.getElementById('timeoutModal').classList.add('active');
+        var payload = { exam_id: EXAM_ID, answers: answers, remaining_seconds: 0 };
+        fetch('/exam/' + EXAM_ID + '/timeout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) { window.location.href = '/exam_result/' + data.attempt_id; }
+            else { document.getElementById('timeoutModal').innerHTML = '<div class="modal-box" style="border-top:4px solid #ef4444;"><h4>提交失败</h4><p>超时提交失败，请手动刷新页面后重新提交。</p></div>'; }
+        }).catch(function() {
+            document.getElementById('timeoutModal').innerHTML = '<div class="modal-box" style="border-top:4px solid #ef4444;"><h4>网络错误</h4><p>网络连接失败，请检查网络后刷新页面重试。</p></div>';
+        });
+    }
+
+    // ===== Answer Collection =====
+    function collectAnswer(qid) {
+        var qtype = qTypes[qid];
+        var val = '';
+        if (qtype === 'single_choice' || qtype === 'code_reading') {
+            var radio = document.querySelector('input[name="q' + qid + '"]:checked');
+            val = radio ? radio.value : '';
+        } else if (qtype === 'true_false') {
+            var trueBtn = document.getElementById('tfTrue' + qid);
+            var falseBtn = document.getElementById('tfFalse' + qid);
+            if (trueBtn && trueBtn.classList.contains('selected')) val = 'true';
+            else if (falseBtn && falseBtn.classList.contains('false-selected')) val = 'false';
+        } else if (qtype === 'fill_blank') {
+            var inp = document.getElementById('qinput' + qid);
+            val = inp ? inp.value.trim() : '';
+        } else if (qtype === 'short_answer' || qtype === 'programming') {
+            var ta = document.getElementById('qinput' + qid);
+            val = ta ? ta.value : '';
+        }
+        return val;
+    }
+
+    function onChoiceChange(qid) {
+        var val = collectAnswer(qid);
+        if (val) answers[qid] = val; else delete answers[qid];
+        updateQuestionStatus(qid, !!val);
+        updateAllProgress();
+        triggerDebouncedSave();
+    }
+
+    function onInputChange(qid) {
+        var val = collectAnswer(qid);
+        if (val && val.trim()) answers[qid] = val.trim(); else delete answers[qid];
+        updateQuestionStatus(qid, !!(val && val.trim()));
+        updateAllProgress();
+        triggerDebouncedSave();
+    }
+
+    function selectTF(qid, value) {
+        var trueBtn = document.getElementById('tfTrue' + qid);
+        var falseBtn = document.getElementById('tfFalse' + qid);
+        if (!trueBtn || !falseBtn) return;
+
+        if (value === 'true') {
+            if (trueBtn.classList.contains('selected')) {
+                trueBtn.classList.remove('selected');
+                trueBtn.setAttribute('aria-pressed', 'false');
+                delete answers[qid];
+            } else {
+                trueBtn.classList.add('selected');
+                trueBtn.setAttribute('aria-pressed', 'true');
+                falseBtn.classList.remove('false-selected');
+                falseBtn.setAttribute('aria-pressed', 'false');
+                answers[qid] = 'true';
+            }
+        } else {
+            if (falseBtn.classList.contains('false-selected')) {
+                falseBtn.classList.remove('false-selected');
+                falseBtn.setAttribute('aria-pressed', 'false');
+                delete answers[qid];
+            } else {
+                falseBtn.classList.add('false-selected');
+                falseBtn.setAttribute('aria-pressed', 'true');
+                trueBtn.classList.remove('selected');
+                trueBtn.setAttribute('aria-pressed', 'false');
+                answers[qid] = 'false';
+            }
+        }
+        updateQuestionStatus(qid, !!answers[qid]);
+        updateAllProgress();
+        triggerDebouncedSave();
+    }
+
+    function restoreAnswerUI(qid, val) {
+        var qtype = qTypes[qid];
+        if (!val) return;
+        if (qtype === 'single_choice' || qtype === 'code_reading') {
+            var radio = document.querySelector('input[name="q' + qid + '"][value="' + val + '"]') ||
+                        document.querySelector('input[name="q' + qid + '"][value="' + val.toUpperCase() + '"]');
+            if (radio) radio.checked = true;
+        } else if (qtype === 'true_false') {
+            var tb = document.getElementById('tfTrue' + qid);
+            var fb = document.getElementById('tfFalse' + qid);
+            if (tb && fb) {
+                tb.classList.remove('selected'); fb.classList.remove('false-selected');
+                tb.setAttribute('aria-pressed', 'false'); fb.setAttribute('aria-pressed', 'false');
+                if (val === 'true') { tb.classList.add('selected'); tb.setAttribute('aria-pressed', 'true'); }
+                else { fb.classList.add('false-selected'); fb.setAttribute('aria-pressed', 'true'); }
+            }
+        } else if (qtype === 'fill_blank') {
+            var inp = document.getElementById('qinput' + qid);
+            if (inp) inp.value = val;
+        } else if (qtype === 'short_answer' || qtype === 'programming') {
+            var ta = document.getElementById('qinput' + qid);
+            if (ta) ta.value = val;
+        }
+    }
+
+    function updateQuestionStatus(qid, answered) {
+        var navBtn = document.getElementById('qnav' + qid);
+        if (navBtn) {
+            if (answered) navBtn.classList.add('answered');
+            else navBtn.classList.remove('answered');
+        }
+        var qtype = qTypes[qid];
+        if (qtype === 'fill_blank') {
+            var inp = document.getElementById('qinput' + qid);
+            if (inp) { if (answered) inp.classList.add('filled'); else inp.classList.remove('filled'); }
+        } else if (qtype === 'short_answer' || qtype === 'programming') {
+            var ta = document.getElementById('qinput' + qid);
+            if (ta) { if (answered) ta.classList.add('filled'); else ta.classList.remove('filled'); }
+        }
+    }
+
+    function updateAllProgress() {
+        var answeredCount = Object.keys(answers).length;
+        var pct = Math.round(answeredCount / TOTAL_QUESTIONS * 100);
+        setText('sidebarProgress', '已答: ' + answeredCount + '/57');
+        setText('bottomAnswered', answeredCount);
+        setText('bottomProgress', pct + '%');
+        setText('confirmAnswered', answeredCount);
+        var warnEl = document.getElementById('unansweredWarn');
+        if (warnEl) {
+            var unans = TOTAL_QUESTIONS - answeredCount;
+            warnEl.textContent = unans > 0 ? '⚠ 您还有 ' + unans + ' 道题未作答' : '✅ 所有题目已作答完毕';
+            warnEl.style.color = unans > 0 ? '#f59e0b' : '#16a34a';
+        }
+        for (var i = 0; i < allQIds.length; i++) {
+            var cid = allQIds[i];
+            var nb = document.getElementById('qnav' + cid);
+            if (nb) {
+                if (answers.hasOwnProperty(cid) && answers[cid]) nb.classList.add('answered');
+                else nb.classList.remove('answered');
+            }
+        }
+    }
+
+    function setText(id, text) {
+        var el = document.getElementById(id);
+        if (el) el.textContent = text;
+    }
+
+    // ===== Optimized Auto-Save (debounced, user-interaction-triggered) =====
+    var saveDebounceTimer = null;
+    var SAVE_DEBOUNCE_MS = 4000;
+    var pendingSave = false;
+    var saveRetryCount = 0;
+    var MAX_SAVE_RETRIES = 3;
+
+    function triggerDebouncedSave() {
+        if (submitted) return;
+        pendingSave = true;
+        if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+        saveDebounceTimer = setTimeout(performSave, SAVE_DEBOUNCE_MS);
+    }
+
+    function performSave() {
+        if (submitted || manualSaveLocked) return;
+        if (!pendingSave) return;
+        pendingSave = false;
+
+        var dot = document.getElementById('autoSaveDot');
+        var label = document.getElementById('autoSaveLabel');
+        if (dot) dot.classList.add('saving');
+        if (label) label.textContent = '保存中...';
+
+        fetch('/exam/auto_save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ exam_id: EXAM_ID, answers: answers, remaining_seconds: remainingSeconds })
+        }).then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                lastSaveTime = Date.now();
+                saveRetryCount = 0;
+                if (dot) { dot.classList.remove('saving', 'error'); }
+                if (label) label.textContent = '已自动保存';
+                updateAutoSaveLabel();
+            } else {
+                handleSaveError(dot, label);
+            }
+        }).catch(function() {
+            handleSaveError(dot, label);
+        });
+    }
+
+    function handleSaveError(dot, label) {
+        saveRetryCount++;
+        if (dot) { dot.classList.remove('saving'); dot.classList.add('error'); }
+        if (label) label.textContent = '保存失败' + (saveRetryCount <= MAX_SAVE_RETRIES ? '，将自动重试...' : '');
+        if (saveRetryCount <= MAX_SAVE_RETRIES) {
+            setTimeout(function() {
+                if (dot) dot.classList.remove('error');
+                pendingSave = true;
+                performSave();
+            }, 3000);
+        }
+    }
+
+    function saveRemainingTime() {
+        fetch('/exam/auto_save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ exam_id: EXAM_ID, answers: answers, remaining_seconds: remainingSeconds })
+        }).catch(function() {});
+    }
+
+    // Force save before unload
+    function forceSaveNow() {
+        if (submitted) return;
+        var payload = JSON.stringify({ exam_id: EXAM_ID, answers: answers, remaining_seconds: remainingSeconds });
+        if (navigator.sendBeacon) {
+            navigator.sendBeacon('/exam/auto_save', new Blob([payload], { type: 'application/json' }));
+        } else {
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', '/exam/auto_save', false);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            try { xhr.send(payload); } catch(e) {}
+        }
+    }
+
+    // ===== Navigation (fixed scroll container approach) =====
+    function scrollToQuestion(qid) {
+        var card = document.getElementById('qcard' + qid);
+        var container = document.getElementById('examMain');
+        if (!card || !container) return;
+
+        var allCards = container.querySelectorAll('.q-card');
+        for (var i = 0; i < allCards.length; i++) { allCards[i].classList.remove('highlight'); }
+        var allNavs = container.parentElement.querySelectorAll('.q-nav-btn.current');
+        for (var i = 0; i < allNavs.length; i++) { allNavs[i].classList.remove('current'); }
+
+        var navBtn = document.getElementById('qnav' + qid);
+        if (navBtn) navBtn.classList.add('current');
+
+        card.classList.add('highlight');
+
+        var cardTop = card.offsetTop;
+        var containerTop = container.offsetTop;
+        var topbarH = 56;
+        var relativeTop = cardTop - containerTop;
+        container.scrollTo({ top: relativeTop - topbarH - 16, behavior: 'smooth' });
+
+        setTimeout(function() { card.classList.remove('highlight'); }, 2500);
+
+        var sidebar = document.getElementById('examSidebar');
+        if (sidebar) sidebar.classList.remove('open');
+    }
+
+    function scrollToSection(typeName) {
+        var section = document.getElementById('section-' + typeName);
+        var container = document.getElementById('examMain');
+        if (!section || !container) return;
+        var relativeTop = section.offsetTop - container.offsetTop;
+        container.scrollTo({ top: relativeTop - 56 - 8, behavior: 'smooth' });
+    }
+
+    function toggleSidebar() {
+        var sidebar = document.getElementById('examSidebar');
+        if (sidebar) sidebar.classList.toggle('open');
+    }
+
+    // ===== Submission =====
+    function confirmSubmit() {
+        if (submitted) return;
+        var answeredCount = Object.keys(answers).length;
+        setText('confirmAnswered', answeredCount);
+        var unans = TOTAL_QUESTIONS - answeredCount;
+        var warnEl = document.getElementById('unansweredWarn');
+        if (warnEl) {
+            warnEl.textContent = unans > 0 ? '⚠ 您还有 ' + unans + ' 道题未作答' : '✅ 所有题目已作答完毕';
+            warnEl.style.color = unans > 0 ? '#f59e0b' : '#16a34a';
+        }
+        document.getElementById('confirmModal').classList.add('active');
+    }
+
+    function closeConfirm() {
+        document.getElementById('confirmModal').classList.remove('active');
+    }
+
+    function doSubmit() {
+        if (submitted) return;
+
+        if (!navigator.onLine) {
+            showToast('网络连接已断开，请检查网络后重试');
+            document.getElementById('submitErrorMsg').textContent = '网络连接已断开，无法提交试卷。请检查网络连接后重试。';
+            document.getElementById('submitErrorModal').classList.add('active');
+            return;
+        }
+
+        submitted = true;
+        document.getElementById('btnConfirmSubmit').disabled = true;
+        document.getElementById('btnConfirmSubmit').textContent = '提交中...';
+        document.getElementById('btnSubmitExam').disabled = true;
+        document.getElementById('confirmModal').classList.remove('active');
+
+        showToast('正在提交试卷，请稍候...');
+
+        var payload = { exam_id: EXAM_ID, answers: answers, remaining_seconds: remainingSeconds };
+
+        fetch('/exam/' + EXAM_ID + '/submit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                clearInterval(timerInterval);
+                showToast('提交成功！正在跳转...');
+                setTimeout(function() { window.location.href = '/exam_result/' + data.attempt_id; }, 600);
+            } else {
+                submitted = false;
+                document.getElementById('btnConfirmSubmit').disabled = false;
+                document.getElementById('btnConfirmSubmit').textContent = '确认提交';
+                document.getElementById('btnSubmitExam').disabled = false;
+                document.getElementById('submitErrorMsg').textContent = '服务器返回提交失败: ' + (data.error || '未知错误') + '。请重试。';
+                document.getElementById('submitErrorModal').classList.add('active');
+            }
+        }).catch(function(e) {
+            submitted = false;
+            document.getElementById('btnConfirmSubmit').disabled = false;
+            document.getElementById('btnConfirmSubmit').textContent = '确认提交';
+            document.getElementById('btnSubmitExam').disabled = false;
+            document.getElementById('submitErrorMsg').textContent = '网络请求失败，提交未完成。请检查网络连接后重试。';
+            document.getElementById('submitErrorModal').classList.add('active');
+        });
+    }
+
+    function closeSubmitError() {
+        document.getElementById('submitErrorModal').classList.remove('active');
+    }
+
+    // ===== Toast =====
+    var toastTimeout = null;
+    function showToast(msg, duration) {
+        var toast = document.getElementById('examToast');
+        if (!toast) return;
+        toast.className = 'exam-toast';
+        toast.textContent = msg;
+        toast.classList.add('show');
+        if (toastTimeout) clearTimeout(toastTimeout);
+        toastTimeout = setTimeout(function() { toast.classList.remove('show'); }, duration || 2500);
+    }
+
+    // ===== Event Delegation =====
+    var examMain = document.getElementById('examMain');
+    if (examMain) {
+        examMain.addEventListener('change', function(e) {
+            var target = e.target;
+            if (target.type === 'radio' && target.name && target.name.indexOf('q') === 0) {
+                var qid = parseInt(target.getAttribute('data-qid'));
+                if (!isNaN(qid)) onChoiceChange(qid);
+            }
+        });
+        examMain.addEventListener('input', function(e) {
+            var target = e.target;
+            var qid = parseInt(target.getAttribute('data-qid'));
+            if (!isNaN(qid) && (target.type === 'text' || target.type === 'textarea' || target.tagName === 'TEXTAREA')) {
+                onInputChange(qid);
+            }
+        });
+        examMain.addEventListener('click', function(e) {
+            var btn = e.target.closest('.tf-btn');
+            if (btn) {
+                var qid = parseInt(btn.getAttribute('data-qid'));
+                var value = btn.getAttribute('data-value');
+                if (!isNaN(qid) && value) selectTF(qid, value);
+            }
+        });
+        examMain.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                var btn = e.target.closest('.tf-btn');
+                if (btn) {
+                    e.preventDefault();
+                    var qid = parseInt(btn.getAttribute('data-qid'));
+                    var value = btn.getAttribute('data-value');
+                    if (!isNaN(qid) && value) selectTF(qid, value);
+                }
+            }
+        });
+    }
+
+    // Sidebar nav delegation
+    var sidebar = document.getElementById('examSidebar');
+    if (sidebar) {
+        sidebar.addEventListener('click', function(e) {
+            var btn = e.target.closest('.q-nav-btn');
+            if (btn) {
+                var qid = parseInt(btn.getAttribute('data-qid'));
+                if (!isNaN(qid)) scrollToQuestion(qid);
+            }
+        });
+    }
+
+    // Modal close buttons delegation
+    document.getElementById('btnCloseWarning').addEventListener('click', closeWarning);
+    document.getElementById('btnCloseConfirm').addEventListener('click', closeConfirm);
+    document.getElementById('btnConfirmSubmit').addEventListener('click', doSubmit);
+    document.getElementById('btnSubmitExam').addEventListener('click', confirmSubmit);
+    document.getElementById('btnRetrySubmit').addEventListener('click', function() {
+        document.getElementById('submitErrorModal').classList.remove('active');
+        doSubmit();
+    });
+    document.getElementById('mobileNavToggle').addEventListener('click', toggleSidebar);
+
+    // Close modals on overlay click
+    document.querySelectorAll('.modal-overlay').forEach(function(overlay) {
+        overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) overlay.classList.remove('active');
+        });
+    });
+
+    // ===== beforeunload =====
+    window.addEventListener('beforeunload', function(e) {
+        if (!submitted && remainingSeconds > 0) {
+            forceSaveNow();
+            e.preventDefault();
+            e.returnValue = '您还有未提交的考试，确定要离开吗？';
+            return e.returnValue;
+        }
+    });
+
+    window.addEventListener('pagehide', function() {
+        if (!submitted && remainingSeconds > 0) { forceSaveNow(); }
+    });
+
+    // ===== Keyboard Navigation =====
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeWarning();
+            closeConfirm();
+            closeSubmitError();
+            var sb = document.getElementById('examSidebar');
+            if (sb) sb.classList.remove('open');
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Tab' && e.target.classList.contains('code-editor')) {
+            e.preventDefault();
+            var start = e.target.selectionStart;
+            var end = e.target.selectionEnd;
+            e.target.value = e.target.value.substring(0, start) + '    ' + e.target.value.substring(end);
+            e.target.selectionStart = e.target.selectionEnd = start + 4;
+            var qid = parseInt(e.target.getAttribute('data-qid'));
+            if (!isNaN(qid)) onInputChange(qid);
+        }
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            pendingSave = true;
+            performSave();
+            showToast('答案已手动保存', 1500);
+        }
+    });
+
+    // ===== Init =====
+    function init() {
+        updateTimerDisplay();
+        timerInterval = setInterval(onTimerTick, 1000);
+
+        pendingSave = true;
+        setTimeout(function() {
+            if (pendingSave) performSave();
+        }, 2500);
+
+        updateAllProgress();
+        lastSaveTime = Date.now();
+        setInterval(updateAutoSaveLabel, 10000);
+
+        document.addEventListener('click', function(e) {
+            var sb = document.getElementById('examSidebar');
+            if (!sb || !sb.classList.contains('open')) return;
+            if (!sb.contains(e.target) && e.target.id !== 'mobileNavToggle') {
+                sb.classList.remove('open');
+            }
+        });
+
+        if (window.navigator.onLine === false) {
+            showToast('⚠ 当前处于离线状态，答案将保存在本地浏览器中', 5000);
+        }
+
+        window.addEventListener('online', function() {
+            showToast('✅ 网络已恢复连接', 2000);
+            pendingSave = true;
+            performSave();
+        });
+
+        window.addEventListener('offline', function() {
+            showToast('⚠ 网络已断开，答案将暂存在本地', 4000);
+        });
+
+        console.log('[Exam] Initialized. ID:', EXAM_ID, 'Duration:', TOTAL_DURATION_SECONDS + 's', 'Questions:', TOTAL_QUESTIONS);
+    }
+
+    init();
+})();
+</script>
+{% endblock %}

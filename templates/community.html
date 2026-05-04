@@ -1,31 +1,73 @@
 {% extends "base.html" %}
 {% block title %}学习社区 - Python编程实训平台{% endblock %}
+{% block meta_description %}Python学习社区，与学员交流编程经验、分享学习心得、讨论技术问题，共同成长进步{% endblock %}
+{% block og_title %}Python学习社区 - 交流互助{% endblock %}
+{% block og_description %}Python学习社区，与学员交流编程经验、分享学习心得、讨论技术问题{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">学习社区</h2>
-    <div class="mb-4">
-        <a href="{{ url_for('new_post') }}" class="btn btn-primary">
-            发布新帖
-        </a>
-    </div>
-    <section aria-label="社区帖子列表">
-    {% for post in posts %}
-    <article class="card mb-3">
-        <div class="card-body">
-            <div class="d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0">
-                    <a href="{{ url_for('view_post', post_id=post.id) }}" class="text-decoration-none">{{ post.title }}</a>
-                </h5>
-                <small class="text-muted">作者: {{ post.author.username }}</small>
+<div class="container py-6">
+    <section class="page-intro animate-fadeIn">
+        <div class="page-intro-row">
+            <div>
+                <h2 class="page-title">学习社区</h2>
+                <p class="page-subtitle">与学员交流编程经验、分享学习心得、讨论技术问题，共同成长进步</p>
             </div>
-            <p class="text-muted mt-2">{{ post.content[:150] }}...</p>
-            <div class="d-flex justify-content-between align-items-center">
-                <time class="text-muted" datetime="{{ post.created_at.strftime('%Y-%m-%dT%H:%M') }}">{{ post.created_at.strftime('%Y-%m-%d %H:%M') }}</time>
-                <span class="badge bg-secondary" aria-label="{{ post.replies | length }}条回复">{{ post.replies | length }} 回复</span>
-            </div>
+            <a href="{{ url_for('new_post') }}" class="btn btn-primary" aria-label="发布新帖子">
+                <span aria-hidden="true">&#9997;</span> 发布新帖
+            </a>
         </div>
-    </article>
-    {% endfor %}
+    </section>
+
+    <section aria-label="社区帖子列表" class="posts-list">
+        {% for post in posts %}
+        <article class="post-card animate-fadeIn" style="animation-delay:{{ loop.index * 0.05 }}s">
+            <div class="post-card-header">
+                <h3 class="post-card-title">
+                    <a href="{{ url_for('view_post', post_id=post.id) }}">{{ post.title }}</a>
+                </h3>
+                <span class="post-card-author" aria-label="作者">
+                    <span aria-hidden="true">&#128100;</span> {{ post.author.username }}
+                </span>
+            </div>
+            <p class="post-card-excerpt">{{ post.content[:200] }}{% if post.content|length > 200 %}...{% endif %}</p>
+            <div class="post-card-footer">
+                <time datetime="{{ post.created_at.strftime('%Y-%m-%dT%H:%M') }}" class="post-card-time">
+                    <span aria-hidden="true">&#128197;</span> {{ post.created_at.strftime('%Y-%m-%d %H:%M') }}
+                </time>
+                <span class="post-card-replies" aria-label="{{ post.replies|length }}条回复">
+                    <span aria-hidden="true">&#128172;</span> {{ post.replies|length }} 回复
+                </span>
+            </div>
+        </article>
+        {% endfor %}
+        {% if not posts %}
+        <div class="empty-state">
+            <span class="empty-icon" aria-hidden="true">&#128172;</span>
+            <p>暂无帖子，快来发布第一个帖子吧</p>
+            <a href="{{ url_for('new_post') }}" class="btn btn-primary btn-sm">发布新帖</a>
+        </div>
+        {% endif %}
     </section>
 </div>
+
+<style>
+.posts-list{display:flex;flex-direction:column;gap:var(--space-4)}
+.post-card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:var(--space-5);transition:all .2s}
+.post-card:hover{border-color:var(--primary-light);box-shadow:var(--shadow-sm)}
+.post-card-header{display:flex;justify-content:space-between;align-items:flex-start;gap:var(--space-3);margin-bottom:var(--space-3);flex-wrap:wrap}
+.post-card-title{font-size:var(--text-lg);font-weight:700;margin:0;line-height:var(--leading-tight)}
+.post-card-title a{color:var(--gray-800);text-decoration:none}
+.post-card-title a:hover{color:var(--primary)}
+.post-card-author{font-size:var(--text-xs);color:var(--gray-500);white-space:nowrap;display:flex;align-items:center;gap:.25rem}
+.post-card-excerpt{color:var(--gray-600);font-size:var(--text-sm);line-height:var(--leading-relaxed);margin:0 0 var(--space-4) 0}
+.post-card-footer{display:flex;justify-content:space-between;align-items:center;font-size:var(--text-xs);color:var(--gray-400)}
+.post-card-time,.post-card-replies{display:flex;align-items:center;gap:.25rem}
+.post-card-replies{padding:.125rem .625rem;background:var(--gray-100);border-radius:var(--radius-full);color:var(--gray-600);font-weight:500}
+.page-intro-row{display:flex;align-items:flex-start;justify-content:space-between;gap:var(--space-4);flex-wrap:wrap}
+
+@media(max-width:639.98px){
+    .page-intro-row{flex-direction:column}
+    .post-card-header{flex-direction:column}
+}
+</style>
 {% endblock %}

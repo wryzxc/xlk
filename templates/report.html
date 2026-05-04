@@ -1,58 +1,76 @@
 {% extends "base.html" %}
+{% block title %}学习报告 - Python编程实训平台{% endblock %}
+{% block meta_description %}Python学习数据报告，包含练习得分统计、考试平均分、分类完成率等多维度学习分析{% endblock %}
+{% block og_title %}学习分析报告 - Python编程实训平台{% endblock %}
+{% block og_description %}Python学习数据报告，包含练习得分统计、考试平均分等多维度分析{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">学习报告</h2>
-    
-    <div class="row mb-4">
-        <div class="col-md-3">
-            <div class="stat-card">
-                <h3>{{ total_submissions }}</h3>
-                <p>总提交数</p>
-            </div>
+<div class="container py-6">
+    <section class="page-intro animate-fadeIn">
+        <h2 class="page-title">学习报告</h2>
+        <p class="page-subtitle">多维度数据分析，帮助你了解学习状态、发现薄弱环节、优化学习策略</p>
+    </section>
+
+    <div class="stats-grid animate-fadeIn" style="animation-delay:.05s;margin-bottom:2rem">
+        <div class="stat-card">
+            <h3>{{ total_submissions }}</h3>
+            <p>总提交数</p>
         </div>
-        <div class="col-md-3">
-            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                <h3>{{ "%.0f"|format(avg_score) }}%</h3>
-                <p>平均分</p>
-            </div>
+        <div class="stat-card stat-card-variant-1">
+            <h3>{{ "%.0f"|format(avg_score) }}%</h3>
+            <p>练习平均分</p>
         </div>
-        <div class="col-md-3">
-            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                <h3>{{ "%.0f"|format(avg_exam_score) }}%</h3>
-                <p>考试平均分</p>
-            </div>
+        <div class="stat-card stat-card-variant-2">
+            <h3>{{ "%.0f"|format(avg_exam_score) }}%</h3>
+            <p>考试平均分</p>
         </div>
-        <div class="col-md-3">
-            <div class="stat-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-                <h3>{{ "%.0f"|format(completion_rate) }}%</h3>
-                <p>完成率</p>
-            </div>
+        <div class="stat-card stat-card-variant-3">
+            <h3>{{ "%.0f"|format(completion_rate) }}%</h3>
+            <p>课程完成率</p>
         </div>
     </div>
-    
+
     {% if category_scores %}
-    <div class="card">
-        <div class="card-header">
-            <h5 class="mb-0">分类得分统计</h5>
-        </div>
-        <div class="card-body">
-            {% for category, score in category_scores.items() %}
-            <div class="mb-3">
-                <label>{{ category }}</label>
-                <div class="progress" style="height: 25px;">
-                    <div class="progress-bar" role="progressbar" 
-                         style="width: {{ score }}%" 
-                         aria-valuenow="{{ score }}" 
-                         aria-valuemin="0" 
-                         aria-valuemax="100">
-                        {{ "%.0f"|format(score) }}%
-                    </div>
-                </div>
+    <section class="report-detail-card animate-fadeIn" style="animation-delay:.1s" aria-label="分类得分统计">
+        <h3 class="card-section-title">分类得分统计</h3>
+        {% for category, score in category_scores.items() %}
+        <div class="report-score-item">
+            <div class="report-score-header">
+                <span class="report-score-name">{{ category }}</span>
+                <span class="report-score-value">{{ "%.0f"|format(score) }}%</span>
             </div>
-            {% endfor %}
+            <div class="progress-bar-wrap" role="progressbar" aria-valuenow="{{ score|int }}" aria-valuemin="0" aria-valuemax="100" aria-label="{{ category }}: {{ '%.0f'|format(score) }}%">
+                <div class="progress-bar-fill {% if score>=80 %}success{% elif score>=60 %}warning{% else %}danger{% endif %}" style="width:{{ score }}%"></div>
+            </div>
         </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    {% if not category_scores %}
+    <div class="empty-state animate-fadeIn" style="animation-delay:.1s">
+        <span class="empty-icon" aria-hidden="true">&#128202;</span>
+        <p>暂无可分析数据，完成一些练习后即可生成学习报告</p>
+        <a href="{{ url_for('exercises') }}" class="btn btn-primary btn-sm">开始练习</a>
     </div>
     {% endif %}
 </div>
+
+<style>
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem}
+.report-detail-card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-xl);padding:1.5rem}
+.card-section-title{font-size:1.125rem;font-weight:700;color:var(--gray-800);margin:0 0 1.25rem 0}
+.report-score-item{margin-bottom:1.25rem}
+.report-score-item:last-child{margin-bottom:0}
+.report-score-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:.375rem}
+.report-score-name{font-size:.875rem;font-weight:500;color:var(--gray-700)}
+.report-score-value{font-size:.875rem;font-weight:700;color:var(--primary)}
+
+@media(max-width:767.98px){
+    .stats-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:480px){
+    .stats-grid{grid-template-columns:1fr}
+}
+</style>
 {% endblock %}

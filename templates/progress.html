@@ -1,54 +1,71 @@
 {% extends "base.html" %}
+{% block title %}学习进度 - Python编程实训平台{% endblock %}
+{% block meta_description %}实时追踪Python学习进度，查看各课程完成情况、课时进度统计，科学规划学习路径{% endblock %}
+{% block og_title %}学习进度追踪 - Python编程实训平台{% endblock %}
+{% block og_description %}实时追踪Python学习进度，查看各课程完成情况、课时进度统计{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">学习进度</h2>
-    
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="stat-card">
-                <h3>{{ course_progress | length }}</h3>
-                <p>已学习课程</p>
-            </div>
+<div class="container py-6">
+    <section class="page-intro animate-fadeIn">
+        <h2 class="page-title">学习进度</h2>
+        <p class="page-subtitle">实时追踪你的学习进度，科学规划学习路径，确保每个知识点都扎实掌握</p>
+    </section>
+
+    <div class="stats-grid animate-fadeIn" style="animation-delay:.05s;margin-bottom:2rem">
+        <div class="stat-card">
+            <h3>{{ course_progress|length }}</h3>
+            <p>已学习课程</p>
         </div>
-        <div class="col-md-4">
-            <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-                <h3>{{ progress_records | length }}</h3>
-                <p>学习章节数</p>
-            </div>
+        <div class="stat-card stat-card-variant-1">
+            <h3>{{ progress_records|length }}</h3>
+            <p>学习章节数</p>
         </div>
-        <div class="col-md-4">
-            <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-                <h3>{{ progress_records | selectattr('completed') | list | length }}</h3>
-                <p>已完成章节</p>
-            </div>
+        <div class="stat-card stat-card-variant-2">
+            <h3>{{ progress_records|selectattr('completed')|list|length }}</h3>
+            <p>已完成章节</p>
         </div>
     </div>
-    
-    <div class="card">
-        <div class="card-header">
-            <h5 class="mb-0">课程进度详情</h5>
-        </div>
-        <div class="card-body">
-            {% for course_id, data in course_progress.items() %}
-            {% set course = progress_records | selectattr('course_id', 'equalto', course_id) | first %}
-            {% if course %}
-            <div class="mb-4">
-                <h5>{{ course.course.title }}</h5>
-                <div class="progress" style="height: 25px;">
-                    <div class="progress-bar" role="progressbar" 
-                         style="width: {{ (data.completed / data.total * 100) if data.total > 0 else 0 }}%" 
-                         aria-valuenow="{{ data.completed }}" 
-                         aria-valuemin="0" 
-                         aria-valuemax="{{ data.total }}">
-                        {{ "%.0f"|format(data.completed / data.total * 100) if data.total > 0 else 0 }}%
-                    </div>
-                </div>
-                <p class="text-muted mt-1">已完成 {{ data.completed }}/{{ data.total }} 章节</p>
+
+    <section class="progress-detail-card animate-fadeIn" style="animation-delay:.1s" aria-label="课程进度详情">
+        <h3 class="card-section-title">课程进度详情</h3>
+        {% for course_id, data in course_progress.items() %}
+        {% set record = progress_records|selectattr('course_id','equalto',course_id)|first %}
+        {% if record %}
+        <div class="progress-course-item">
+            <h4 class="progress-course-name">{{ record.course.title }}</h4>
+            <div class="progress-info-row">
+                <span class="progress-percent">{{ "%.0f"|format(data.completed/data.total*100) if data.total>0 else 0 }}%</span>
+                <span class="progress-fraction">已完成 {{ data.completed }}/{{ data.total }} 章节</span>
             </div>
-            {% endif %}
-            {% endfor %}
+            <div class="progress-bar-wrap" role="progressbar" aria-valuenow="{{ data.completed }}" aria-valuemin="0" aria-valuemax="{{ data.total }}" aria-label="{{ record.course.title }} 进度">
+                <div class="progress-bar-fill {% if data.completed==data.total %}success{% endif %}" style="width:{{ (data.completed/data.total*100) if data.total>0 else 0 }}%"></div>
+            </div>
         </div>
-    </div>
+        {% endif %}
+        {% endfor %}
+        {% if not course_progress %}
+        <div class="empty-state">
+            <span class="empty-icon" aria-hidden="true">&#128200;</span>
+            <p>还没有开始学习，快去探索课程吧</p>
+            <a href="{{ url_for('courses') }}" class="btn btn-primary btn-sm">浏览课程</a>
+        </div>
+        {% endif %}
+    </section>
 </div>
+
+<style>
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}
+.progress-detail-card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-xl);padding:1.5rem}
+.card-section-title{font-size:1.125rem;font-weight:700;color:var(--gray-800);margin:0 0 1.25rem 0}
+.progress-course-item{margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1px solid var(--gray-100)}
+.progress-course-item:last-child{margin-bottom:0;padding-bottom:0;border-bottom:none}
+.progress-course-name{font-size:1rem;font-weight:600;color:var(--gray-700);margin:0 0 .5rem 0}
+.progress-info-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem}
+.progress-percent{font-size:.75rem;font-weight:700;color:var(--primary)}
+.progress-fraction{font-size:.75rem;color:var(--gray-400)}
+
+@media(max-width:639.98px){
+    .stats-grid{grid-template-columns:1fr}
+}
+</style>
 {% endblock %}

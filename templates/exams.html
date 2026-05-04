@@ -1,27 +1,75 @@
 {% extends "base.html" %}
 {% block title %}在线考试 - Python编程实训平台{% endblock %}
+{% block meta_description %}Python分级考试系统，基础/进阶/高级三级考核，自动评分即时反馈，检验学习成果{% endblock %}
+{% block og_title %}Python分级考试 - 在线考核评估{% endblock %}
+{% block og_description %}Python分级考试系统，基础/进阶/高级三级考核，自动评分即时反馈，检验学习成果{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-    <h2 class="mb-4">在线考试</h2>
-    <section aria-label="考试列表">
-    <div class="row">
+<div class="container py-6">
+    <section class="page-intro animate-fadeIn">
+        <h2 class="page-title">在线考试</h2>
+        <p class="page-subtitle">科学的分级考核体系，通过阶段性考试检验学习成果，获得学习认证</p>
+    </section>
+
+    <section aria-label="考试列表" class="exams-grid">
         {% for exam in exams %}
-        <div class="col-md-6 mb-4">
-            <article class="card h-100">
-                <div class="card-body">
-                    <h5 class="card-title">{{ exam.title }}</h5>
-                    <p class="card-text">{{ exam.description }}</p>
-                    <ul class="list-unstyled">
-                        <li><i class="bi bi-clock" aria-hidden="true"></i> 考试时长: {{ exam.duration_minutes }} 分钟</li>
-                        <li><i class="bi bi-check-circle" aria-hidden="true"></i> 及格分数: {{ exam.passing_score }}%</li>
-                        <li><i class="bi bi-question-circle" aria-hidden="true"></i> 题目数量: {{ exam.questions | length }}</li>
-                    </ul>
-                    <a href="{{ url_for('exam_detail', exam_id=exam.id) }}" class="btn btn-primary" aria-label="开始{{ exam.title }}">开始考试</a>
+        <article class="exam-card animate-fadeIn" style="animation-delay:{{ loop.index * 0.08 }}s">
+            <div class="exam-card-top">
+                <div class="exam-card-icon" aria-hidden="true">
+                    {% if loop.index == 1 %}&#127793;
+                    {% elif loop.index == 2 %}&#9881;
+                    {% else %}&#127942;{% endif %}
                 </div>
-            </article>
-        </div>
+                <div class="exam-card-title-area">
+                    <h3 class="exam-card-title">{{ exam.title }}</h3>
+                </div>
+            </div>
+            <p class="exam-card-desc">{{ exam.description[:120] }}{% if exam.description|length > 120 %}...{% endif %}</p>
+            <dl class="exam-card-meta">
+                <div class="exam-meta-item">
+                    <dt><span aria-hidden="true">&#9202;</span> 考试时长</dt>
+                    <dd>{{ exam.duration_minutes }} 分钟</dd>
+                </div>
+                <div class="exam-meta-item">
+                    <dt><span aria-hidden="true">&#127919;</span> 及格分数</dt>
+                    <dd>{{ exam.passing_score }}%</dd>
+                </div>
+                <div class="exam-meta-item">
+                    <dt><span aria-hidden="true">&#128203;</span> 题目数量</dt>
+                    <dd>{{ exam.questions|length }} 题</dd>
+                </div>
+            </dl>
+            <div class="card-actions">
+                <a href="{{ url_for('exam_detail', exam_id=exam.id) }}" class="btn btn-primary" aria-label="开始考试: {{ exam.title }}">
+                    开始考试 <span aria-hidden="true">&#8594;</span>
+                </a>
+            </div>
+        </article>
         {% endfor %}
-    </div>
+        {% if not exams %}
+        <div class="empty-state">
+            <span class="empty-icon" aria-hidden="true">&#128203;</span>
+            <p>暂无可用考试</p>
+        </div>
+        {% endif %}
     </section>
 </div>
+
+<style>
+.exams-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:var(--space-5)}
+.exam-card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius-xl);padding:var(--space-5);display:flex;flex-direction:column;transition:all .2s}
+.exam-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);border-color:var(--primary-light)}
+.exam-card-top{display:flex;align-items:center;gap:var(--space-3);margin-bottom:var(--space-3)}
+.exam-card-icon{width:48px;height:48px;border-radius:var(--radius-lg);background:linear-gradient(135deg,var(--primary),#06b6d4);display:flex;align-items:center;justify-content:center;font-size:1.5rem;color:#fff;flex-shrink:0}
+.exam-card-title-area{flex:1}
+.exam-card-title{font-size:var(--text-lg);font-weight:700;color:var(--gray-800);margin:0;line-height:var(--leading-tight)}
+.exam-card-desc{color:var(--gray-500);font-size:var(--text-sm);line-height:var(--leading-relaxed);margin:0 0 var(--space-4) 0;flex:1}
+.exam-card-meta{display:flex;gap:var(--space-4);margin:0 0 var(--space-4) 0;padding:var(--space-3) 0;border-top:1px solid var(--gray-100);border-bottom:1px solid var(--gray-100);flex-wrap:wrap}
+.exam-meta-item dt{font-size:var(--text-xs);color:var(--gray-400);display:flex;align-items:center;gap:.25rem;font-weight:400}
+.exam-meta-item dd{font-size:var(--text-sm);font-weight:600;color:var(--gray-700);margin:0}
+
+@media(max-width:639.98px){
+    .exams-grid{grid-template-columns:1fr}
+}
+</style>
 {% endblock %}

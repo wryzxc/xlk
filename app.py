@@ -1,4 +1,5 @@
 import os
+import json
 import subprocess
 import tempfile
 import time
@@ -106,18 +107,7 @@ class User(UserMixin, db.Model):
         return int((completed / len(lessons)) * 100)
     
     def can_access_lesson(self, lesson):
-        """检查用户是否可以访问指定课时（前一课时必须完成）"""
-        if lesson.order == 1:
-            return True
-        prev_lesson = Lesson.query.filter_by(
-            course_id=lesson.course_id, order=lesson.order - 1
-        ).first()
-        if not prev_lesson:
-            return True
-        progress = LearningProgress.query.filter_by(
-            user_id=self.id, lesson_id=prev_lesson.id, completed=True
-        ).first()
-        return progress is not None
+        return True
 
 class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -248,8 +238,11 @@ class ExamAttempt(db.Model):
     answers = db.Column(db.Text, nullable=True)
     score = db.Column(db.Float, default=0.0)
     passed = db.Column(db.Boolean, default=False)
+    status = db.Column(db.String(20), default='in_progress')
     started_at = db.Column(db.DateTime, default=datetime.utcnow)
     completed_at = db.Column(db.DateTime, nullable=True)
+    auto_saved_at = db.Column(db.DateTime, nullable=True)
+    remaining_seconds = db.Column(db.Integer, nullable=True)
     exam = db.relationship('Exam', backref='attempts')
 
 class ForumPost(db.Model):
@@ -634,43 +627,32 @@ def course_detail(course_id):
     
     # 获取用户各课时完成状态
     lesson_status = {}
-    can_access = {}
     if current_user.is_authenticated:
         for lesson in lessons:
             progress = LearningProgress.query.filter_by(
                 user_id=current_user.id, lesson_id=lesson.id, completed=True
             ).first()
             lesson_status[lesson.id] = progress is not None
-            can_access[lesson.id] = current_user.can_access_lesson(lesson)
     else:
         for lesson in lessons:
             lesson_status[lesson.id] = False
-            can_access[lesson.id] = lesson.order == 1
     
     course_progress = 0
     if current_user.is_authenticated:
         course_progress = current_user.get_course_progress(course_id)
     
-    # 获取课程增强内容
     course_enhancement = get_course_enhancement(course_id)
     learning_tools = get_learning_tools()
 
     return render_template('course_detail.html', course=course, lessons=lessons,
-                         lesson_status=lesson_status, can_access=can_access,
-                         course_progress=course_progress,
-                         enhancement=course_enhancement,
-                         learning_tools=learning_tools)
+                         lesson_status=lesson_status, course_progress=course_progress,
+                         enhancement=course_enhancement, learning_tools=learning_tools)
 
 @app.route('/lesson/<int:lesson_id>')
 def lesson_detail(lesson_id):
     lesson = Lesson.query.get_or_404(lesson_id)
     
-    # 检查访问权限
     if current_user.is_authenticated:
-        if not current_user.can_access_lesson(lesson):
-            flash('请先完成前面的课时', 'warning')
-            return redirect(url_for('course_detail', course_id=lesson.course_id))
-        
         # 记录访问
         progress = LearningProgress.query.filter_by(
             user_id=current_user.id, lesson_id=lesson_id
@@ -961,72 +943,215 @@ def exams():
 @login_required
 def exam_detail(exam_id):
     exam = Exam.query.get_or_404(exam_id)
-    questions = ExamQuestion.query.filter_by(exam_id=exam_id).order_by(ExamQuestion.order).all()
-    return render_template('exam_detail.html', exam=exam, questions=questions)
+    
+    existing = ExamAttempt.query.filter_by(
+        user_id=current_user.id, exam_id=exam_id, status='in_progress'
+    ).first()
+    if existing:
+        return redirect(url_for('take_exam', exam_id=exam_id))
+    
+    return redirect(url_for('take_exam', exam_id=exam_id))
 
-@app.route('/submit_exam/<int:exam_id>', methods=['POST'])
+@app.route('/exam/<int:exam_id>/take')
+@login_required
+def take_exam(exam_id):
+    exam = Exam.query.get_or_404(exam_id)
+    
+    attempt = ExamAttempt.query.filter_by(
+        user_id=current_user.id, exam_id=exam_id, status='in_progress'
+    ).first()
+    
+    if not attempt:
+        attempt = ExamAttempt(
+            user_id=current_user.id,
+            exam_id=exam_id,
+            answers='{}',
+            status='in_progress',
+            started_at=datetime.utcnow()
+        )
+        db.session.add(attempt)
+        db.session.commit()
+    
+    questions = ExamQuestion.query.filter_by(exam_id=exam_id).order_by(ExamQuestion.order).all()
+    
+    question_types = {}
+    for q in questions:
+        qtype = q.question_type
+        if qtype not in question_types:
+            question_types[qtype] = []
+        question_types[qtype].append({
+            'id': q.id, 'text': q.question_text, 'type': qtype,
+            'options': q.options, 'answer': q.correct_answer,
+            'points': q.points, 'order': q.order
+        })
+    
+    return render_template('take_exam.html',
+        exam=exam, questions=questions, attempt=attempt,
+        question_types=question_types,
+        total_questions=len(questions)
+    )
+
+@app.route('/exam/auto_save', methods=['POST'])
+@login_required
+def exam_auto_save():
+    data = request.get_json()
+    exam_id = data.get('exam_id')
+    answers = data.get('answers', {})
+    remaining = data.get('remaining_seconds')
+    
+    attempt = ExamAttempt.query.filter_by(
+        user_id=current_user.id, exam_id=exam_id, status='in_progress'
+    ).first()
+    
+    if attempt:
+        attempt.answers = json.dumps(answers)
+        attempt.auto_saved_at = datetime.utcnow()
+        attempt.remaining_seconds = remaining
+        db.session.commit()
+        return jsonify({'success': True, 'saved_at': attempt.auto_saved_at.isoformat()})
+    
+    return jsonify({'success': False, 'error': 'No active exam session'}), 404
+
+@app.route('/exam/<int:exam_id>/submit', methods=['POST'])
 @login_required
 def submit_exam(exam_id):
     exam = Exam.query.get_or_404(exam_id)
-    questions = ExamQuestion.query.filter_by(exam_id=exam_id).all()
+    data = request.get_json()
+    user_answers = data.get('answers', {})
+    remaining = data.get('remaining_seconds', 0)
     
-    answers = {}
+    questions = ExamQuestion.query.filter_by(exam_id=exam_id).order_by(ExamQuestion.order).all()
+    
     total_score = 0
     max_score = 0
+    correct_count = 0
+    results = {}
     
-    for question in questions:
-        max_score += question.points
-        user_answer = request.form.get(f'question_{question.id}', '')
-        answers[question.id] = user_answer
+    for q in questions:
+        max_score += q.points
+        user_ans = str(user_answers.get(str(q.id), '')).strip()
+        correct_ans = str(q.correct_answer).strip()
         
-        if user_answer.strip() == question.correct_answer.strip():
-            total_score += question.points
+        is_correct = False
+        qtype = q.question_type
+        
+        if qtype in ('single_choice', 'true_false', 'code_reading'):
+            is_correct = user_ans.upper() == correct_ans.upper()
+        elif qtype == 'fill_blank':
+            is_correct = user_ans.lower() == correct_ans.lower()
+        elif qtype == 'short_answer':
+            is_correct = len(user_ans) >= 10
+        elif qtype == 'programming':
+            is_correct = False
+        
+        if is_correct:
+            total_score += q.points
+            correct_count += 1
+        
+        results[str(q.id)] = {'correct': is_correct, 'user_answer': user_ans, 'correct_answer': correct_ans}
     
     percentage = (total_score / max_score * 100) if max_score > 0 else 0
     passed = percentage >= exam.passing_score
     
-    attempt = ExamAttempt(
-        user_id=current_user.id,
-        exam_id=exam_id,
-        answers=str(answers),
-        score=percentage,
-        passed=passed,
-        completed_at=datetime.utcnow()
-    )
-    db.session.add(attempt)
+    attempt = ExamAttempt.query.filter_by(
+        user_id=current_user.id, exam_id=exam_id, status='in_progress'
+    ).first()
+    
+    if attempt:
+        attempt.answers = json.dumps({'answers': user_answers, 'results': results})
+        attempt.score = percentage
+        attempt.passed = passed
+        attempt.status = 'completed'
+        attempt.completed_at = datetime.utcnow()
+        attempt.remaining_seconds = remaining
+    else:
+        attempt = ExamAttempt(
+            user_id=current_user.id, exam_id=exam_id,
+            answers=json.dumps({'answers': user_answers, 'results': results}),
+            score=percentage, passed=passed, status='completed',
+            started_at=datetime.utcnow(), completed_at=datetime.utcnow(),
+            remaining_seconds=remaining
+        )
+        db.session.add(attempt)
+    
     db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'attempt_id': attempt.id,
+        'score': round(percentage, 1),
+        'passed': passed,
+        'total_points': round(total_score, 1),
+        'max_points': round(max_score, 1),
+        'correct_count': correct_count,
+        'total_questions': len(questions)
+    })
 
-    # 记录考试参与日志
-    exam_log = ExamParticipationLog(
-        user_id=current_user.id,
-        exam_id=exam_id,
-        answers=str(answers),
-        score=percentage,
-        passed=passed,
-        completed_at=datetime.utcnow(),
-        correct_count=sum(1 for q in questions if answers.get(str(q.id), '').strip() == q.correct_answer.strip()),
-        total_questions=len(questions)
-    )
-    db.session.add(exam_log)
-
-    # 记录学习行为日志
-    learning_log = LearningLog(
-        user_id=current_user.id,
-        log_type='exam',
-        action='完成考试',
-        target_id=exam_id,
-        target_name=exam.title,
-        target_type='exam',
-        detail=f'用户 {current_user.username} 完成考试 "{exam.title}"，得分: {percentage:.1f}%，{"通过" if passed else "未通过"}',
-        score=percentage,
-        ip_address=request.remote_addr,
-        user_agent=request.user_agent.string if request.user_agent else None
-    )
-    db.session.add(learning_log)
+@app.route('/exam/<int:exam_id>/timeout', methods=['POST'])
+@login_required
+def exam_timeout(exam_id):
+    data = request.get_json()
+    user_answers = data.get('answers', {})
+    
+    exam = Exam.query.get_or_404(exam_id)
+    questions = ExamQuestion.query.filter_by(exam_id=exam_id).order_by(ExamQuestion.order).all()
+    
+    total_score = 0
+    max_score = 0
+    correct_count = 0
+    results = {}
+    
+    for q in questions:
+        max_score += q.points
+        user_ans = str(user_answers.get(str(q.id), '')).strip()
+        correct_ans = str(q.correct_answer).strip()
+        
+        is_correct = False
+        if q.question_type in ('single_choice', 'true_false', 'code_reading'):
+            is_correct = user_ans.upper() == correct_ans.upper()
+        elif q.question_type == 'fill_blank':
+            is_correct = user_ans.lower() == correct_ans.lower()
+        elif q.question_type == 'short_answer':
+            is_correct = len(user_ans) >= 10
+        
+        if is_correct:
+            total_score += q.points
+            correct_count += 1
+        results[str(q.id)] = {'correct': is_correct, 'user_answer': user_ans}
+    
+    percentage = (total_score / max_score * 100) if max_score > 0 else 0
+    passed = percentage >= exam.passing_score
+    
+    attempt = ExamAttempt.query.filter_by(
+        user_id=current_user.id, exam_id=exam_id, status='in_progress'
+    ).first()
+    
+    if attempt:
+        attempt.answers = json.dumps({'answers': user_answers, 'results': results})
+        attempt.score = percentage
+        attempt.passed = passed
+        attempt.status = 'timeout'
+        attempt.completed_at = datetime.utcnow()
+        attempt.remaining_seconds = 0
+    else:
+        attempt = ExamAttempt(
+            user_id=current_user.id, exam_id=exam_id,
+            answers=json.dumps({'answers': user_answers, 'results': results}),
+            score=percentage, passed=passed, status='timeout',
+            started_at=datetime.utcnow(), completed_at=datetime.utcnow(),
+            remaining_seconds=0
+        )
+        db.session.add(attempt)
+    
     db.session.commit()
-
-    flash(f'考试完成！得分: {percentage:.1f}%', 'success' if passed else 'danger')
-    return redirect(url_for('exam_result', attempt_id=attempt.id))
+    
+    return jsonify({
+        'success': True,
+        'attempt_id': attempt.id,
+        'score': round(percentage, 1),
+        'passed': passed,
+        'message': '考试时间已到，系统已自动提交'
+    })
 
 @app.route('/exam_result/<int:attempt_id>')
 @login_required
@@ -1036,7 +1161,85 @@ def exam_result(attempt_id):
         abort(403)
     
     questions = ExamQuestion.query.filter_by(exam_id=attempt.exam_id).order_by(ExamQuestion.order).all()
-    return render_template('exam_result.html', attempt=attempt, questions=questions)
+    
+    user_answers = {}
+    try:
+        stored = json.loads(attempt.answers) if attempt.answers else {}
+        if 'answers' in stored:
+            user_answers = stored['answers']
+        else:
+            user_answers = stored
+    except:
+        user_answers = {}
+
+    type_labels = {
+        'single_choice': '\u5355\u9009\u9898',
+        'true_false': '\u5224\u65ad\u9898',
+        'fill_blank': '\u586b\u7a7a\u9898',
+        'code_reading': '\u7a0b\u5e8f\u9605\u8bfb\u9898',
+        'short_answer': '\u7b80\u7b54\u9898',
+        'programming': '\u7f16\u7a0b\u9898'
+    }
+
+    type_scores = {}
+    for q in questions:
+        qtype = q.question_type
+        if qtype not in type_scores:
+            type_scores[qtype] = {'total': 0, 'earned': 0, 'correct': 0, 'count': 0}
+        type_scores[qtype]['total'] += q.points
+        type_scores[qtype]['count'] += 1
+        user_ans = str(user_answers.get(str(q.id), '')).strip()
+        correct_ans = q.correct_answer.strip() if q.correct_answer else ''
+
+        if qtype in ('single_choice', 'true_false', 'code_reading'):
+            is_correct = user_ans.upper() == correct_ans.upper()
+        elif qtype == 'fill_blank':
+            is_correct = user_ans.lower() == correct_ans.lower()
+        elif qtype == 'short_answer':
+            is_correct = len(user_ans) >= 10
+        else:
+            is_correct = False
+
+        if is_correct:
+            type_scores[qtype]['earned'] += q.points
+            type_scores[qtype]['correct'] += 1
+
+    question_details = []
+    for q in questions:
+        user_ans = str(user_answers.get(str(q.id), '')).strip()
+        correct_ans = q.correct_answer.strip() if q.correct_answer else ''
+        qtype = q.question_type
+
+        if qtype in ('single_choice', 'true_false', 'code_reading'):
+            correct_flag = user_ans.upper() == correct_ans.upper()
+        elif qtype == 'fill_blank':
+            correct_flag = user_ans.lower() == correct_ans.lower()
+        elif qtype == 'short_answer':
+            correct_flag = len(user_ans) >= 10
+        else:
+            correct_flag = False
+
+        question_details.append({
+            'id': q.id,
+            'order': q.order,
+            'text': q.question_text[:120],
+            'question_type': qtype,
+            'type_label': type_labels.get(qtype, qtype),
+            'points': q.points,
+            'user_answer': user_ans[:200],
+            'correct_answer': correct_ans,
+            'is_correct': correct_flag
+        })
+
+    total_points = sum(v['total'] for v in type_scores.values())
+    earned_points = sum(v['earned'] for v in type_scores.values())
+    score_pct = round(earned_points / total_points * 100, 1) if total_points > 0 else 0.0
+
+    return render_template('exam_result.html',
+        attempt=attempt, questions=questions, type_scores=type_scores,
+        type_labels=type_labels, question_details=question_details,
+        total_points=total_points, earned_points=earned_points,
+        score_pct=score_pct)
 
 @app.route('/progress')
 @login_required
@@ -1353,6 +1556,11 @@ def new_course():
         category = request.form.get('category')
         level = request.form.get('level')
         content = request.form.get('content')
+        
+        existing = Course.query.filter_by(title=title).first()
+        if existing:
+            flash(f'课程"{title}"已存在，请勿重复创建', 'warning')
+            return render_template('new_course.html')
         
         course = Course(title=title, description=description, category=category, level=level, content=content)
         db.session.add(course)
